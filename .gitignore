@@ -1,0 +1,6 @@
+/bin/          # Compiled binaries
+/pkg/          # Package cache
+/.idea/        # JetBrains IDE files (like Goland)
+/vendor/       # Vendor dependencies
+/storage/      # Local file storage (to avoid committing uploaded/downloaded files)
+.env           # Environment variables (secrets)
