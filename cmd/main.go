@@ -23,8 +23,8 @@ func main() {
 	network := &RealNetworkAdapter{Nodes: make(map[string]string)}
 
 	// Manually set Ngrok public URLs for each node
-	nodeAURL := "" // Replace with actual Ngrok URL
-	nodeBURL := "" // Replace with actual Ngrok URL
+	nodeAURL := "http://localhost:8081" // Replace with actual Ngrok URL
+	nodeBURL := "http://localhost:8082" // Replace with actual Ngrok URL
 
 	// Register nodes with their Ngrok URLs
 	network.Nodes["A"] = nodeAURL
