@@ -12,3 +12,5 @@ go run ./...
 ```bash
 curl localhost:8080/foo
 ```
+
+Or just go to http://localhost:8080/whatever 🙂
