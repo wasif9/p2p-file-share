@@ -28,3 +28,8 @@ psql -u postgres
 
 ```sql
 CREATE DATABASE registry0;
+```
+
+# Testing
+
+Tests are in `*_test.go` files. First start the db manager and then execute the tests in another terminal. This isn't technically the proper way to do it, but it is easy and it works.
