@@ -4,3 +4,5 @@
 /vendor/       # Vendor dependencies
 /storage/      # Local file storage (to avoid committing uploaded/downloaded files)
 .env           # Environment variables (secrets)
+# Executable binary files
+*.exe
