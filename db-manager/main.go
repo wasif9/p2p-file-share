@@ -23,6 +23,8 @@ func handler(w http.ResponseWriter, r *http.Request) {
 const PORT = "8080"
 
 func main() {
+	var err error
+
 	// prefix-based pattern matching means any route with
 	// the / prefix (all of them) will be served by function 'handler'
 	http.HandleFunc("/", handler)
@@ -45,10 +47,14 @@ func main() {
 	fmt.Println(myRecord.Model.ID)
 	fmt.Println(myRecord.Name)
 
-	db.AutoMigrate(&Record{})
+	err = db.AutoMigrate(&Record{})
+	if err != nil {
+		log.Fatal(err)
+	}
 
 	fmt.Printf("Server starting on port %s...\n", PORT)
-	if err := http.ListenAndServe(net.JoinHostPort("localhost", PORT), nil); err != nil {
+	err = http.ListenAndServe(net.JoinHostPort("localhost", PORT), nil)
+	if err != nil {
 		log.Fatal(err)
 	}
 }
