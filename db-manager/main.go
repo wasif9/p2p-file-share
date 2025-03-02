@@ -20,6 +20,23 @@ func handler(w http.ResponseWriter, r *http.Request) {
 	fmt.Fprintf(w, "You requested: %s\n", r.URL.Path)
 }
 
+/***********************
+* This function inserts a record into the registry database
+* Input:
+*		struct Record
+* Returns:
+* 		None
+*
+************************/
+func insertRecord(db *gorm.DB, record Record) {
+	result := db.Create(&record)
+
+	if result.Error != nil {
+		log.Fatal(result.Error)
+	}
+
+}
+
 const PORT = "8080"
 
 func main() {
