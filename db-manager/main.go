@@ -23,13 +23,32 @@ func handler(w http.ResponseWriter, r *http.Request) {
 /***********************
 * This function inserts a record into the registry database
 * Input:
-*		struct Record
+*		*gorm.DB db
+* 		struct Record record
 * Returns:
 * 		None
 *
 ************************/
 func insertRecord(db *gorm.DB, record Record) {
 	result := db.Create(&record)
+
+	if result.Error != nil {
+		log.Fatal(result.Error)
+	}
+
+}
+
+/***********************
+* This function deletes a record from the registry database
+* Input:
+*		*gorm.DB db
+* 		filename
+* Returns:
+* 		None
+*
+************************/
+func deleteRecord(db *gorm.DB, id uint) {
+	result := db.Delete(&Record{}, id)
 
 	if result.Error != nil {
 		log.Fatal(result.Error)
