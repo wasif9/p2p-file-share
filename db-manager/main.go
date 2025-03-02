@@ -13,6 +13,7 @@ import (
 // todo: move this to a models.go file/package
 type Record struct {
 	gorm.Model
+	//ID   uint
 	Name string
 }
 
@@ -29,7 +30,8 @@ func handler(w http.ResponseWriter, r *http.Request) {
 * 		None
 *
 ************************/
-func insertRecord(db *gorm.DB, record Record) {
+func insertRecord(db *gorm.DB, record *Record) {
+
 	result := db.Create(&record)
 
 	if result.Error != nil {
@@ -70,6 +72,7 @@ func main() {
 
 	dsn := fmt.Sprintf("host=localhost user=postgres password=password dbname=registry%d port=5432 sslmode=disable TimeZone=UTC", index)
 	db, err := gorm.Open(postgres.Open(dsn), &gorm.Config{})
+
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -87,6 +90,10 @@ func main() {
 	if err != nil {
 		log.Fatal(err)
 	}
+
+	insertRecord(db, &myRecord)
+
+	deleteRecord(db, 5)
 
 	fmt.Printf("Server starting on port %s...\n", PORT)
 	err = http.ListenAndServe(net.JoinHostPort("localhost", PORT), nil)
