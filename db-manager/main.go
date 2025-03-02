@@ -10,6 +10,12 @@ import (
 	"gorm.io/gorm"
 )
 
+// todo: move this to a models.go file/package
+type Record struct {
+	gorm.Model
+	Name string
+}
+
 func handler(w http.ResponseWriter, r *http.Request) {
 	fmt.Fprintf(w, "You requested: %s\n", r.URL.Path)
 }
@@ -31,6 +37,15 @@ func main() {
 	}
 
 	fmt.Printf("%+v\n\n", db.Config)
+
+	myRecord := Record{
+		Name: "pete",
+	}
+
+	fmt.Println(myRecord.Model.ID)
+	fmt.Println(myRecord.Name)
+
+	db.AutoMigrate(&Record{})
 
 	fmt.Printf("Server starting on port %s...\n", PORT)
 	if err := http.ListenAndServe(net.JoinHostPort("localhost", PORT), nil); err != nil {
