@@ -75,6 +75,7 @@ func deleteRecord(db *gorm.DB, id uint) {
 const index = 0 // the index of this DB instance
 const PORT = "8080"
 const VERSION = "v1"
+const PG_PASSWORD = "password"
 
 func main() {
 
@@ -82,7 +83,7 @@ func main() {
 	http.HandleFunc("/api/"+VERSION+"/records", recordsHandler)
 
 	// Connection to the database
-	dsn := fmt.Sprintf("host=localhost user=postgres password=password dbname=registry%d port=5432 sslmode=disable TimeZone=UTC", index)
+	dsn := fmt.Sprintf("host=localhost user=postgres password=%s dbname=registry%d port=5432 sslmode=disable TimeZone=UTC", PG_PASSWORD, index)
 	db, err := gorm.Open(postgres.Open(dsn), &gorm.Config{})
 	if err != nil {
 		log.Fatal(err)
