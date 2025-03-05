@@ -5,7 +5,6 @@ import (
 	"log"
 	"net"
 	"net/http"
-	"time"
 
 	"gorm.io/driver/postgres"
 	"gorm.io/gorm"
@@ -16,13 +15,9 @@ import (
 * Struct for the database records
 *
 * **************************************/
-type Record struct {
-	//gorm.Model
-	ID        uint      `gorm:"primarykey"`
-	CreatedAt time.Time `gorm:"autoCreateTime"`
-	UpdatedAt time.Time `gorm:"autoUpdateTime"`
-	Filename  string    `gorm:"not null"` //`gorm:"unique;not null"`
-	Filehash  string    `gorm:"not null"` //`gorm:"unique;not null"`
+type Manifest struct {
+	Name string `gorm:"primaryKey" json:"name"`
+	Hash string `json:"hash"`
 }
 
 func handler(w http.ResponseWriter, r *http.Request) {
@@ -38,7 +33,7 @@ func handler(w http.ResponseWriter, r *http.Request) {
 * 		None
 *
 ************************/
-func insertRecord(db *gorm.DB, record *Record) {
+func insertRecord(db *gorm.DB, record *Manifest) {
 
 	result := db.Create(&record)
 
@@ -59,7 +54,7 @@ func insertRecord(db *gorm.DB, record *Record) {
 ************************/
 func deleteRecord(db *gorm.DB, filename string) {
 
-	result := db.Where("filename = ?", filename).Delete(&Record{})
+	result := db.Where("filename = ?", filename).Delete(&Manifest{})
 
 	if result.RowsAffected == 0 {
 		fmt.Println("No record found to delete")
@@ -82,7 +77,7 @@ func deleteRecord(db *gorm.DB, filename string) {
 * 		[]Record record
 *
 ************************/
-func queryRecord(db *gorm.DB) (record []Record) {
+func queryRecord(db *gorm.DB) (record []Manifest) {
 
 	result := db.Find(&record)
 
@@ -103,7 +98,7 @@ func queryRecord(db *gorm.DB) (record []Record) {
 * 		Record record
 *
 ************************/
-func querySingleRecord(db *gorm.DB, filename string) (record Record) {
+func querySingleRecord(db *gorm.DB, filename string) (record Manifest) {
 
 	//result := db.Select("filehash").Where("filename = ?", filename).First(&record)
 	result := db.Where("filename = ?", filename).First(&record)
@@ -151,7 +146,7 @@ func main() {
 	// fmt.Println(myRecord1.Filename)
 	// fmt.Println(myRecord1.Filehash)
 
-	err = db.AutoMigrate(&Record{})
+	err = db.AutoMigrate(&Manifest{})
 	if err != nil {
 		log.Fatal(err)
 	}
