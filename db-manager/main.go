@@ -48,14 +48,14 @@ func insertRecord(db *gorm.DB, record *Manifest) (newRecord Manifest, Error erro
 * 		None
 *
 ************************/
-func deleteRecord(db *gorm.DB, filename string) {
+func deleteRecord(db *gorm.DB, filename string) (Error error) {
 
 	result := db.Where("filename = ?", filename).Delete(&Manifest{})
 
 	if result.RowsAffected == 0 {
-		fmt.Println("No record found to delete")
+		return result.Error
 	} else {
-		fmt.Println("Record deleted successfully")
+		return nil
 	}
 
 }
