@@ -49,7 +49,7 @@ func recordsHandler(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 
-		createdManifest, err := replaceWithGarethsInsertMethod(newManifest)
+		createdManifest, err := insertRecord(db, &newManifest)
 		if err != nil {
 			http.Error(w, err.Error(), http.StatusInternalServerError)
 			return
