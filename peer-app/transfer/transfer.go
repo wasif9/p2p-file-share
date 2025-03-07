@@ -16,8 +16,15 @@ import (
 const FileTransferProtocol = "/file-transfer/1.0.0"
 
 func dhtLookup(node host.Host, chunkHash string) peer.ID {
-	d := node.Peerstore().Peers()[1] // first non-self peer
-	return d
+	// return the first non-self peer
+	for _, p := range node.Peerstore().Peers() {
+		if p != node.ID() {
+			return p
+		}
+	}
+
+	log.Fatal("non-self peer not found")
+	return ""
 }
 
 func GetChunk(node host.Host, chunkHash string) {
