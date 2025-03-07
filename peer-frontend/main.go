@@ -13,6 +13,10 @@ import (
 )
 
 const (
+	LoadBalancerAdr = "http://localhost:8080"
+)
+
+const (
 	DownloadTab = iota		// 0
 	UploadTab				// 1
 	ProgressTab				// 2
@@ -33,6 +37,15 @@ func main() {
 
 		// DownloadUI instance
 		dnUI := &DownloadUI{
+			list: widget.List{
+				List: layout.List{
+					Axis: layout.Vertical,
+				},
+			},
+		}
+
+		// ProgressUI instance
+		prgUI := &ProgressUI{
 			list: widget.List{
 				List: layout.List{
 					Axis: layout.Vertical,
@@ -63,11 +76,11 @@ func main() {
 					// Right content of the selected tab
 					layout.Rigid(func(gtx layout.Context) layout.Dimensions {
 						if tabSelected == DownloadTab {
-							return dnUI.DownloadLayout(gtx, th)
+							return dnUI.DownloadLayout(gtx, th, prgUI)
 						} else if tabSelected == UploadTab {
 							return material.Body1(th, "Upload").Layout(gtx)
 						} else {
-							return material.Body1(th, "Download Progress").Layout(gtx)
+							return prgUI.ProgressLayout(gtx, th)
 						}
 					}),
 					

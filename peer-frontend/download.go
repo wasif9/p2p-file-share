@@ -4,7 +4,9 @@ import (
 	"log"
 	"strings"
 	"image/color"
-	"time"
+	"encoding/json"
+	"net/http"
+
 
 	"gioui.org/app"
 	"gioui.org/layout"
@@ -20,6 +22,12 @@ type SearchData struct {
 	fileSize		string
 }
 
+// DB JSON struct
+type Manifest struct {
+	Name string `json:"name"`
+	Hash string `json:"hash"`
+}
+
 type DownloadUI struct {
 	searchInput     widget.Editor
 	searchButton    widget.Clickable
@@ -30,7 +38,7 @@ type DownloadUI struct {
 	downloadButton  widget.Clickable
 }
 
-func (ui *DownloadUI) DownloadLayout(gtx layout.Context, th *material.Theme) layout.Dimensions {
+func (ui *DownloadUI) DownloadLayout(gtx layout.Context, th *material.Theme, prgUI *ProgressUI) layout.Dimensions {
 	return layout.Flex{Axis: layout.Vertical}.Layout(gtx,
 		// Upper part for text search
 		layout.Rigid(func(gtx layout.Context) layout.Dimensions {
@@ -72,12 +80,12 @@ func (ui *DownloadUI) DownloadLayout(gtx layout.Context, th *material.Theme) lay
 
 		// Lower part for search results
 		layout.Rigid(func(gtx layout.Context) layout.Dimensions {
-			return ui.LayoutResults(gtx, th)
+			return ui.LayoutResults(gtx, th, prgUI)
 		}),
 	)
 }
 
-func (ui *DownloadUI) LayoutResults(gtx layout.Context, th *material.Theme) layout.Dimensions {
+func (ui *DownloadUI) LayoutResults(gtx layout.Context, th *material.Theme, prgUI *ProgressUI) layout.Dimensions {
 	// When no result
 	if len(ui.results) == 0 {
 		return layout.Flex{Axis: layout.Vertical}.Layout(gtx,
@@ -111,9 +119,9 @@ func (ui *DownloadUI) LayoutResults(gtx layout.Context, th *material.Theme) layo
 					// Padding
 					inset := layout.Inset{
 						Top:    5,
-						Right:  20,
 						Bottom: 5,
 						Left:   20,
+						Right:  20,
 					}
 
 					// Apply the padding and layout the button
@@ -160,7 +168,7 @@ func (ui *DownloadUI) LayoutResults(gtx layout.Context, th *material.Theme) layo
 							// When download is clicked
 							if ui.downloadButton.Clicked(gtx) {
 								log.Println("Selected result:", ui.selectedResult)
-								Download()
+								ui.Download(prgUI)
 							}
 							return btn.Layout(gtx)
 						})
@@ -175,6 +183,9 @@ func (ui *DownloadUI) LayoutResults(gtx layout.Context, th *material.Theme) layo
 func PopupMessage(message string) {
 	go func() {
 		popupWindow := new(app.Window)
+		popupWindow.Option(app.Title("P2P File Share"))
+		popupWindow.Option(app.Size(unit.Dp(400), unit.Dp(200)))
+
 		thPopup := material.NewTheme()
 		var popupOps op.Ops
 
@@ -186,11 +197,20 @@ func PopupMessage(message string) {
 				popupGtx := app.NewContext(&popupOps, popupEvent)
 
 				// Display the message in the popup window
-				layout.Center.Layout(popupGtx, func(gtx layout.Context) layout.Dimensions {
-					textLabel := material.Body1(thPopup, message)
-					textLabel.Color = color.NRGBA{R: 255, G: 0, B: 0, A: 255} // Red color
-					return textLabel.Layout(popupGtx)
-				})
+				layout.Flex{Axis: layout.Vertical}.Layout(popupGtx,
+					layout.Flexed(1, func(popupGtx layout.Context) layout.Dimensions {
+						return layout.Flex{Axis: layout.Horizontal}.Layout(popupGtx,
+							layout.Flexed(1, func(popupGtx layout.Context) layout.Dimensions {
+								return layout.Center.Layout(popupGtx, func(popupGtx layout.Context) layout.Dimensions {
+									text := material.Body1(thPopup, message)
+									text.Color = color.NRGBA{R:255, A: 255}
+									text.TextSize = unit.Sp(20)
+									return text.Layout(popupGtx)
+								})
+							}),
+						)
+					}),
+				)
 
 				popupEvent.Frame(popupGtx.Ops)
 
@@ -212,29 +232,66 @@ func (ui *DownloadUI) PerformSearch() {
 
 	// Dummy data for the query
 	ui.results = []SearchData{
-		{"fileHash 1", "fileName1", "10 KB"},
-		{"fileHash 2", "fileName2", "20 KB"},
-		{"fileHash 3", "fileName3", "30 KB"},
-		{"fileHash 4", "fileName4", "40 KB"},
-		{"fileHash 5", "fileName5", "50 KB"},
-		{"fileHash 6", "fileName6", "10 MB"},
-		{"fileHash 7", "fileName7", "10 GB"},
-		{"fileHash 8", "fileName8", "10 TB"},
-		{"fileHash 9", "fileName9", "1 KB"},
-		{"fileHash 10", "fileName10", "100 KB"},
+		{"abcdefg", "myfile.txt", "10 KB"},
+		// {"fileHash 2", "fileName2", "20 KB"},
+		// {"fileHash 3", "fileName3", "30 KB"},
+		// {"fileHash 4", "fileName4", "40 KB"},
+		// {"fileHash 5", "fileName5", "50 KB"},
+		// {"fileHash 6", "fileName6", "10 MB"},
+		// {"fileHash 7", "fileName7", "10 GB"},
+		// {"fileHash 8", "fileName8", "10 TB"},
+		// {"fileHash 9", "fileName9", "1 KB"},
+		// {"fileHash 10", "fileName10", "100 KB"},
 	}
 
 	// Make buttons to select the result
 	ui.resultButtons = make([]widget.Clickable, len(ui.results))
 }
 
-func Download() {
+func (ui *DownloadUI) Download(prgUI *ProgressUI) {
 	go func() {
-		PopupMessage("Start to download")
+		fileName := ui.selectedResult.fileName
+		// Add file to the progress page
+		downloadFile := prgUI.AddDownload(fileName, ui.selectedResult.fileHash)
+
+		// Not process to download since file is downloading
+		if downloadFile == nil {
+			return
+		}
+	
+		// Make GET request to the load balancer server
+		getReq := "/api/v1/records/" + fileName
+		log.Println("Send GET " + getReq + " to " + LoadBalancerAdr)
+
+		// Send GET requet
+		resp, err := http.Get(LoadBalancerAdr + getReq)
+		if err != nil {
+			log.Println("Error:", err)
+			return
+		}
+		defer resp.Body.Close()
+	
+		// Decode the JSON response
+		var manifest Manifest
+		if err := json.NewDecoder(resp.Body).Decode(&manifest); err != nil {
+			log.Println("Decode Error:", err)
+			return
+		}
+	
+		// Print received data
+		log.Println("Name:", manifest.Name)
+		log.Println("Hash:", manifest.Hash)
+
+		// ------------------------------------------------------------
+		// P2P Download
+
+		// Update download progress = data received / file size
+		downloadFile.Progress = 0
+		
+		
+		
 		tabSelected = ProgressTab
 
-		time.Sleep(3 * time.Second)
-
-		PopupMessage("Finish download")
+		PopupMessage(fileName + " download finish")
 	}()
 }
