@@ -297,6 +297,9 @@ func (ui *DownloadUI) Download(prgUI *ProgressUI) {
 
 		requestFile(ui.node, dhtLookup(ui.node, manifest.Hash), manifest.Name)
 
+		// Set the progress bar to 100% (hardcode for now)
+		downloadFile.Progress = 1
+
 		PopupMessage(fileName + " download finish")
 	}()
 }
