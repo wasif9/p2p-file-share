@@ -1,25 +1,24 @@
 package main
 
 import (
-	"log"
-	"strings"
-	"image/color"
 	"encoding/json"
+	"image/color"
+	"log"
 	"net/http"
-
+	"strings"
 
 	"gioui.org/app"
 	"gioui.org/layout"
-	"gioui.org/unit"
 	"gioui.org/op"
+	"gioui.org/unit"
 	"gioui.org/widget"
 	"gioui.org/widget/material"
 )
 
 type SearchData struct {
-	fileHash		string
-	fileName		string
-	fileSize		string
+	fileHash string
+	fileName string
+	fileSize string
 }
 
 // DB JSON struct
@@ -29,13 +28,13 @@ type Manifest struct {
 }
 
 type DownloadUI struct {
-	searchInput     widget.Editor
-	searchButton    widget.Clickable
-	results         []SearchData
-	selectedResult  SearchData
-	resultButtons   []widget.Clickable
-	list       		widget.List
-	downloadButton  widget.Clickable
+	searchInput    widget.Editor
+	searchButton   widget.Clickable
+	results        []SearchData
+	selectedResult SearchData
+	resultButtons  []widget.Clickable
+	list           widget.List
+	downloadButton widget.Clickable
 }
 
 func (ui *DownloadUI) DownloadLayout(gtx layout.Context, th *material.Theme, prgUI *ProgressUI) layout.Dimensions {
@@ -47,9 +46,9 @@ func (ui *DownloadUI) DownloadLayout(gtx layout.Context, th *material.Theme, prg
 				layout.Flexed(1, func(gtx layout.Context) layout.Dimensions {
 					// Padding
 					inset := layout.Inset{
-						Top:    10,
-						Right:  20,
-						Left:   20,
+						Top:   10,
+						Right: 20,
+						Left:  20,
 					}
 
 					return inset.Layout(gtx, func(gtx layout.Context) layout.Dimensions {
@@ -62,9 +61,9 @@ func (ui *DownloadUI) DownloadLayout(gtx layout.Context, th *material.Theme, prg
 				layout.Rigid(func(gtx layout.Context) layout.Dimensions {
 					// Padding
 					inset := layout.Inset{
-						Top:    10,
-						Right:  20,
-						Left:   20,
+						Top:   10,
+						Right: 20,
+						Left:  20,
 					}
 
 					return inset.Layout(gtx, func(gtx layout.Context) layout.Dimensions {
@@ -105,7 +104,7 @@ func (ui *DownloadUI) LayoutResults(gtx layout.Context, th *material.Theme, prgU
 
 	// Results
 	return layout.Inset{
-		Top: 8, 
+		Top:    8,
 		Bottom: 8,
 	}.Layout(gtx, func(gtx layout.Context) layout.Dimensions {
 		// Display all result in buttons
@@ -126,10 +125,10 @@ func (ui *DownloadUI) LayoutResults(gtx layout.Context, th *material.Theme, prgU
 
 					// Apply the padding and layout the button
 					return inset.Layout(gtx, func(gtx layout.Context) layout.Dimensions {
-						dispaly_str := ui.results[i].fileName + strings.Repeat(" ", 30 - len(ui.results[i].fileName)) + 
-										"| Size: " + strings.Repeat(" ", 8 - len(ui.results[i].fileSize)) + ui.results[i].fileSize
+						dispaly_str := ui.results[i].fileName + strings.Repeat(" ", 30-len(ui.results[i].fileName)) +
+							"| Size: " + strings.Repeat(" ", 8-len(ui.results[i].fileSize)) + ui.results[i].fileSize
 						button := material.Button(th, btn, dispaly_str)
-					
+
 						// Different style for selected items
 						if isSelected {
 							// Create a highlighted button
@@ -142,7 +141,7 @@ func (ui *DownloadUI) LayoutResults(gtx layout.Context, th *material.Theme, prgU
 							button.Background = color.NRGBA{R: 255, G: 255, B: 255, A: 255}
 							button.Color = color.NRGBA{R: 0, G: 0, B: 0, A: 255}
 						}
-						
+
 						// Register click event
 						if btn.Clicked(gtx) {
 							ui.selectedResult = ui.results[i]
@@ -157,7 +156,7 @@ func (ui *DownloadUI) LayoutResults(gtx layout.Context, th *material.Theme, prgU
 					if isSelected {
 						// Padding
 						inset := layout.Inset{
-							Right:  20,
+							Right: 20,
 						}
 
 						return inset.Layout(gtx, func(gtx layout.Context) layout.Dimensions {
@@ -203,7 +202,7 @@ func PopupMessage(message string) {
 							layout.Flexed(1, func(popupGtx layout.Context) layout.Dimensions {
 								return layout.Center.Layout(popupGtx, func(popupGtx layout.Context) layout.Dimensions {
 									text := material.Body1(thPopup, message)
-									text.Color = color.NRGBA{R:255, A: 255}
+									text.Color = color.NRGBA{R: 255, A: 255}
 									text.TextSize = unit.Sp(20)
 									return text.Layout(popupGtx)
 								})
@@ -258,7 +257,7 @@ func (ui *DownloadUI) Download(prgUI *ProgressUI) {
 		if downloadFile == nil {
 			return
 		}
-	
+
 		// Make GET request to the load balancer server
 		getReq := "/api/v1/records/" + fileName
 		log.Println("Send GET " + getReq + " to " + LoadBalancerAdr)
@@ -270,14 +269,14 @@ func (ui *DownloadUI) Download(prgUI *ProgressUI) {
 			return
 		}
 		defer resp.Body.Close()
-	
+
 		// Decode the JSON response
 		var manifest Manifest
 		if err := json.NewDecoder(resp.Body).Decode(&manifest); err != nil {
 			log.Println("Decode Error:", err)
 			return
 		}
-	
+
 		// Print received data
 		log.Println("Name:", manifest.Name)
 		log.Println("Hash:", manifest.Hash)
@@ -287,9 +286,7 @@ func (ui *DownloadUI) Download(prgUI *ProgressUI) {
 
 		// Update download progress = data received / file size
 		downloadFile.Progress = 0
-		
-		
-		
+
 		tabSelected = ProgressTab
 
 		PopupMessage(fileName + " download finish")

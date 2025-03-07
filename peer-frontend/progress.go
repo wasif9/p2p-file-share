@@ -12,20 +12,19 @@ import (
 
 // Download represents a file being downloaded
 type Download struct {
-	Hash	 string
+	Hash     string
 	Name     string
 	Progress float32
 	Checked  widget.Bool
-	Shown	 bool
+	Shown    bool
 }
 
 // UI struct manages the downloading files list
 type ProgressUI struct {
-	list   		widget.List
-	files       []Download
-	deleteBtn   widget.Clickable
+	list      widget.List
+	files     []Download
+	deleteBtn widget.Clickable
 }
-
 
 func (ui *ProgressUI) ProgressLayout(gtx layout.Context, th *material.Theme) layout.Dimensions {
 	return layout.Flex{Axis: layout.Vertical, Alignment: layout.End}.Layout(gtx,
@@ -56,7 +55,7 @@ func (ui *ProgressUI) ProgressLayout(gtx layout.Context, th *material.Theme) lay
 				layout.Rigid(func(gtx layout.Context) layout.Dimensions {
 					// Padding
 					inset := layout.Inset{
-						Right:   20,
+						Right: 20,
 					}
 
 					return inset.Layout(gtx, func(gtx layout.Context) layout.Dimensions {
@@ -106,9 +105,9 @@ func (ui *ProgressUI) LayoutDownloadItem(gtx layout.Context, th *material.Theme,
 		layout.Rigid(func(gtx layout.Context) layout.Dimensions {
 			return material.CheckBox(th, &file.Checked, "").Layout(gtx)
 		}),
-		
+
 		layout.Rigid(func(gtx layout.Context) layout.Dimensions {
-			return layout.Flex{Axis: layout.Vertical,}.Layout(gtx,
+			return layout.Flex{Axis: layout.Vertical}.Layout(gtx,
 				// File name
 				layout.Rigid(func(gtx layout.Context) layout.Dimensions {
 					label := material.Body1(th, file.Name)
@@ -131,7 +130,7 @@ func (ui *ProgressUI) AddDownload(name string, hash string) *Download {
 	for _, file := range ui.files {
 		// Let checked file not to be shown in the list
 		if hash == file.Hash && file.Progress != 1 {
-			PopupMessage(name+ " is downloading!")
+			PopupMessage(name + " is downloading!")
 			return nil
 		}
 	}

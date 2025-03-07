@@ -1,15 +1,15 @@
 package main
 
 import (
-    "image/color"
-    "log"
+	"image/color"
+	"log"
 
-    "gioui.org/app"
-    "gioui.org/layout"
-	"gioui.org/unit"
+	"gioui.org/app"
+	"gioui.org/layout"
 	"gioui.org/op"
-    "gioui.org/widget"
-    "gioui.org/widget/material"
+	"gioui.org/unit"
+	"gioui.org/widget"
+	"gioui.org/widget/material"
 )
 
 const (
@@ -17,22 +17,23 @@ const (
 )
 
 const (
-	DownloadTab = iota		// 0
-	UploadTab				// 1
-	ProgressTab				// 2
+	DownloadTab = iota // 0
+	UploadTab          // 1
+	ProgressTab        // 2
 )
 
 var tabSelected = DownloadTab
 
 func main() {
-    go func() {
-        w := new(app.Window)
+	log.SetFlags(log.LstdFlags | log.Lshortfile)
+	go func() {
+		w := new(app.Window)
 		w.Option(app.Title("P2P File Share"))
 		w.Option(app.Size(unit.Dp(800), unit.Dp(600)))
 
-        th := material.NewTheme()
+		th := material.NewTheme()
 		var ops op.Ops
-		
+
 		tabButtons := make([]widget.Clickable, 3)
 
 		// DownloadUI instance
@@ -83,13 +84,12 @@ func main() {
 							return prgUI.ProgressLayout(gtx, th)
 						}
 					}),
-					
 				)
 				e.Frame(gtx.Ops)
 			}
 		}
-    }()
-    app.Main()
+	}()
+	app.Main()
 }
 
 func tab_Btn(th *material.Theme, gtx layout.Context, button *widget.Clickable, title string, tab int) layout.FlexChild {
@@ -112,12 +112,12 @@ func tab_Btn(th *material.Theme, gtx layout.Context, button *widget.Clickable, t
 			btn.TextSize = unit.Sp(20)
 			btn.Color = color.NRGBA{R: 0, G: 0, B: 0, A: 255}
 			btn.Background = color.NRGBA{R: 255, G: 255, B: 255, A: 255}
-	
+
 			// Click event
 			if (*button).Clicked(gtx) {
 				tabSelected = tab
 			}
-	
+
 			return btn.Layout(gtx)
 		})
 	})
