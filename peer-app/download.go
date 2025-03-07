@@ -1,8 +1,11 @@
 package main
 
 import (
+	"context"
 	"encoding/json"
+	"fmt"
 	"image/color"
+	"io/ioutil"
 	"log"
 	"net/http"
 	"strings"
@@ -14,7 +17,7 @@ import (
 	"gioui.org/widget"
 	"gioui.org/widget/material"
 	"github.com/libp2p/go-libp2p/core/host"
-	"github.com/wasif9/p2p-file-share/transfer"
+	"github.com/libp2p/go-libp2p/core/peer"
 )
 
 type SearchData struct {
@@ -292,8 +295,55 @@ func (ui *DownloadUI) Download(prgUI *ProgressUI) {
 
 		tabSelected = ProgressTab
 
-		transfer.GetChunk(ui.node, manifest.Hash)
+		requestFile(ui.node, dhtLookup(ui.node, manifest.Hash), "rec_myfile.txt")
 
 		PopupMessage(fileName + " download finish")
 	}()
+}
+
+func requestFile(h host.Host, providerID peer.ID, fileName string) {
+	// Open a new stream to the provider
+	ctx := context.Background()
+	s, err := h.NewStream(ctx, providerID, protocol)
+	if err != nil {
+		log.Fatal(err)
+	}
+	defer s.Close()
+
+	// Send the file request
+	fmt.Printf("Requesting file: %s\n", fileName)
+	s.Write([]byte(fileName + "\n"))
+
+	// Read the response
+	data, err := ioutil.ReadAll(s)
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	// Check if the response indicates an error
+	response := string(data)
+	if strings.HasPrefix(response, "Error:") || strings.HasPrefix(response, "File not found") {
+		fmt.Println("Failed to get file:", response)
+		return
+	}
+
+	// Write the file data to disk
+	err = ioutil.WriteFile("received_"+fileName, data, 0644)
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	fmt.Printf("Received and saved file as received_%s\n", fileName)
+}
+
+func dhtLookup(node host.Host, chunkHash string) peer.ID {
+	// return the first non-self peer
+	for _, p := range node.Peerstore().Peers() {
+		if p != node.ID() {
+			return p
+		}
+	}
+
+	log.Fatal("non-self peer not found")
+	return ""
 }

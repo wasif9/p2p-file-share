@@ -1,9 +1,12 @@
 package main
 
 import (
+	"bufio"
 	"fmt"
 	"image/color"
+	"io/ioutil"
 	"log"
+	"strings"
 
 	"gioui.org/app"
 	"gioui.org/layout"
@@ -12,6 +15,7 @@ import (
 	"gioui.org/widget"
 	"gioui.org/widget/material"
 	libp2p "github.com/libp2p/go-libp2p"
+	"github.com/libp2p/go-libp2p/core/network"
 	"github.com/wasif9/p2p-file-share/discovery"
 	"github.com/wasif9/p2p-file-share/messaging"
 	"github.com/wasif9/p2p-file-share/transfer"
@@ -20,6 +24,7 @@ import (
 const (
 	LoadBalancerAdr = "http://localhost:8080"
 )
+const protocol = "/file-sharing/1.0.0"
 
 const (
 	DownloadTab = iota // 0
@@ -46,6 +51,10 @@ func main() {
 	messaging.HandleMessages(node)
 	// Handle incoming file requests
 	transfer.HandleFileRequests(node)
+
+	node.SetStreamHandler(protocol, func(s network.Stream) {
+		handleFileRequest(s, "myfile.txt")
+	})
 
 	go func() {
 		w := new(app.Window)
@@ -143,4 +152,37 @@ func tab_Btn(th *material.Theme, gtx layout.Context, button *widget.Clickable, t
 			return btn.Layout(gtx)
 		})
 	})
+}
+
+func handleFileRequest(s network.Stream, fileName string) {
+	defer s.Close()
+
+	// Read the request
+	reader := bufio.NewReader(s)
+	request, err := reader.ReadString('\n')
+	if err != nil {
+		log.Println("Error reading request:", err)
+		return
+	}
+
+	requestedFile := strings.TrimSpace(request)
+	fmt.Printf("Received request for file: %s\n", requestedFile)
+
+	// Check if the requested file matches the one we're serving
+	// if requestedFile != fileName {
+	// 	s.Write([]byte("File not found\n"))
+	// 	return
+	// }
+
+	// Try to read the file
+	data, err := ioutil.ReadFile(fileName)
+	if err != nil {
+		log.Printf("Error reading file %s: %v\n", fileName, err)
+		s.Write([]byte(fmt.Sprintf("Error: %v\n", err)))
+		return
+	}
+
+	// Send the file content
+	s.Write(data)
+	fmt.Printf("Sent file: %s\n", fileName)
 }
