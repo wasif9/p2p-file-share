@@ -53,7 +53,7 @@ func main() {
 	transfer.HandleFileRequests(node)
 
 	node.SetStreamHandler(protocol, func(s network.Stream) {
-		handleFileRequest(s, "myfile.txt")
+		handleFileRequest(s)
 	})
 
 	go func() {
@@ -154,7 +154,7 @@ func tab_Btn(th *material.Theme, gtx layout.Context, button *widget.Clickable, t
 	})
 }
 
-func handleFileRequest(s network.Stream, fileName string) {
+func handleFileRequest(s network.Stream) {
 	defer s.Close()
 
 	// Read the request
@@ -168,21 +168,15 @@ func handleFileRequest(s network.Stream, fileName string) {
 	requestedFile := strings.TrimSpace(request)
 	fmt.Printf("Received request for file: %s\n", requestedFile)
 
-	// Check if the requested file matches the one we're serving
-	// if requestedFile != fileName {
-	// 	s.Write([]byte("File not found\n"))
-	// 	return
-	// }
-
 	// Try to read the file
-	data, err := ioutil.ReadFile(fileName)
+	data, err := ioutil.ReadFile(requestedFile)
 	if err != nil {
-		log.Printf("Error reading file %s: %v\n", fileName, err)
+		log.Printf("Error reading file %s: %v\n", requestedFile, err)
 		s.Write([]byte(fmt.Sprintf("Error: %v\n", err)))
 		return
 	}
 
 	// Send the file content
 	s.Write(data)
-	fmt.Printf("Sent file: %s\n", fileName)
+	fmt.Printf("Sent file: %s\n", requestedFile)
 }

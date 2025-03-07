@@ -295,7 +295,7 @@ func (ui *DownloadUI) Download(prgUI *ProgressUI) {
 
 		tabSelected = ProgressTab
 
-		requestFile(ui.node, dhtLookup(ui.node, manifest.Hash), "rec_myfile.txt")
+		requestFile(ui.node, dhtLookup(ui.node, manifest.Hash), manifest.Name)
 
 		PopupMessage(fileName + " download finish")
 	}()
