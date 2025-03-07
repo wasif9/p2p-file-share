@@ -15,6 +15,19 @@ import (
 // Protocol ID for file transfer
 const FileTransferProtocol = "/file-transfer/1.0.0"
 
+func dhtLookup(node host.Host, chunkHash string) peer.ID {
+	d := node.Peerstore().Peers()[1] // first non-self peer
+	return d
+}
+
+func GetChunk(node host.Host, chunkHash string) {
+	owner := dhtLookup(node, chunkHash)
+
+	fmt.Printf("\t 👁️‍🗨️  Requesting File from %s\n", owner)
+
+	// !! WASIF DO YOUR MAGIC HERE !!
+}
+
 // SendFile sends a file to a peer using a libp2p stream
 func SendFile(node host.Host, peerID peer.ID, filePath string) {
 	// Open the file

@@ -13,6 +13,8 @@ import (
 	"gioui.org/unit"
 	"gioui.org/widget"
 	"gioui.org/widget/material"
+	"github.com/libp2p/go-libp2p/core/host"
+	"github.com/wasif9/p2p-file-share/transfer"
 )
 
 type SearchData struct {
@@ -28,6 +30,7 @@ type Manifest struct {
 }
 
 type DownloadUI struct {
+	node           host.Host
 	searchInput    widget.Editor
 	searchButton   widget.Clickable
 	results        []SearchData
@@ -288,6 +291,8 @@ func (ui *DownloadUI) Download(prgUI *ProgressUI) {
 		downloadFile.Progress = 0
 
 		tabSelected = ProgressTab
+
+		transfer.GetChunk(ui.node, manifest.Hash)
 
 		PopupMessage(fileName + " download finish")
 	}()
