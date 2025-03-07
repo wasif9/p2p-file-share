@@ -282,7 +282,7 @@ func (ui *DownloadUI) Download(prgUI *ProgressUI) {
 		log.Println("Hash:", manifest.Hash)
 
 		// ------------------------------------------------------------
-		// P2P Download
+		// !P2P Download
 
 		// Update download progress = data received / file size
 		downloadFile.Progress = 0
