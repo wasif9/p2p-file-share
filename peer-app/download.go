@@ -1,8 +1,11 @@
 package main
 
 import (
+	"context"
 	"encoding/json"
+	"fmt"
 	"image/color"
+	"io/ioutil"
 	"log"
 	"net/http"
 	"strings"
@@ -13,6 +16,8 @@ import (
 	"gioui.org/unit"
 	"gioui.org/widget"
 	"gioui.org/widget/material"
+	"github.com/libp2p/go-libp2p/core/host"
+	"github.com/libp2p/go-libp2p/core/peer"
 )
 
 type SearchData struct {
@@ -28,6 +33,7 @@ type Manifest struct {
 }
 
 type DownloadUI struct {
+	node           host.Host
 	searchInput    widget.Editor
 	searchButton   widget.Clickable
 	results        []SearchData
@@ -282,13 +288,65 @@ func (ui *DownloadUI) Download(prgUI *ProgressUI) {
 		log.Println("Hash:", manifest.Hash)
 
 		// ------------------------------------------------------------
-		// P2P Download
+		// !P2P Download
 
 		// Update download progress = data received / file size
 		downloadFile.Progress = 0
 
 		tabSelected = ProgressTab
 
+		requestFile(ui.node, dhtLookup(ui.node, manifest.Hash), manifest.Name)
+
+		// Set the progress bar to 100% (hardcode for now)
+		downloadFile.Progress = 1
+
 		PopupMessage(fileName + " download finish")
 	}()
+}
+
+func requestFile(h host.Host, providerID peer.ID, fileName string) {
+	// Open a new stream to the provider
+	ctx := context.Background()
+	s, err := h.NewStream(ctx, providerID, protocol)
+	if err != nil {
+		log.Fatal(err)
+	}
+	defer s.Close()
+
+	// Send the file request
+	fmt.Printf("Requesting file: %s\n", fileName)
+	s.Write([]byte(fileName + "\n"))
+
+	// Read the response
+	data, err := ioutil.ReadAll(s)
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	// Check if the response indicates an error
+	response := string(data)
+	if strings.HasPrefix(response, "Error:") || strings.HasPrefix(response, "File not found") {
+		fmt.Println("Failed to get file:", response)
+		return
+	}
+
+	// Write the file data to disk
+	err = ioutil.WriteFile("received_"+fileName, data, 0644)
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	fmt.Printf("Received and saved file as received_%s\n", fileName)
+}
+
+func dhtLookup(node host.Host, chunkHash string) peer.ID {
+	// return the first non-self peer
+	for _, p := range node.Peerstore().Peers() {
+		if p != node.ID() {
+			return p
+		}
+	}
+
+	log.Fatal("non-self peer not found")
+	return ""
 }

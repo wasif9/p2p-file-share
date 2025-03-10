@@ -1,8 +1,12 @@
 package main
 
 import (
+	"bufio"
+	"fmt"
 	"image/color"
+	"io/ioutil"
 	"log"
+	"strings"
 
 	"gioui.org/app"
 	"gioui.org/layout"
@@ -10,11 +14,17 @@ import (
 	"gioui.org/unit"
 	"gioui.org/widget"
 	"gioui.org/widget/material"
+	libp2p "github.com/libp2p/go-libp2p"
+	"github.com/libp2p/go-libp2p/core/network"
+	"github.com/wasif9/p2p-file-share/discovery"
+	"github.com/wasif9/p2p-file-share/messaging"
+	"github.com/wasif9/p2p-file-share/transfer"
 )
 
 const (
 	LoadBalancerAdr = "http://localhost:8080"
 )
+const protocol = "/file-sharing/1.0.0"
 
 const (
 	DownloadTab = iota // 0
@@ -26,6 +36,26 @@ var tabSelected = DownloadTab
 
 func main() {
 	log.SetFlags(log.LstdFlags | log.Lshortfile)
+
+	// Create a new libp2p node (peer)
+	node, err := libp2p.New()
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	// Print the node's multiaddresses
+	fmt.Println("Node ID:", node.ID().String())
+	// Enable mDNS-based peer discovery
+	discovery.SetupDiscovery(node)
+	// Handle incoming messages
+	messaging.HandleMessages(node)
+	// Handle incoming file requests
+	transfer.HandleFileRequests(node)
+
+	node.SetStreamHandler(protocol, func(s network.Stream) {
+		handleFileRequest(s)
+	})
+
 	go func() {
 		w := new(app.Window)
 		w.Option(app.Title("P2P File Share"))
@@ -43,6 +73,7 @@ func main() {
 					Axis: layout.Vertical,
 				},
 			},
+			node: node,
 		}
 
 		// ProgressUI instance
@@ -121,4 +152,31 @@ func tab_Btn(th *material.Theme, gtx layout.Context, button *widget.Clickable, t
 			return btn.Layout(gtx)
 		})
 	})
+}
+
+func handleFileRequest(s network.Stream) {
+	defer s.Close()
+
+	// Read the request
+	reader := bufio.NewReader(s)
+	request, err := reader.ReadString('\n')
+	if err != nil {
+		log.Println("Error reading request:", err)
+		return
+	}
+
+	requestedFile := strings.TrimSpace(request)
+	fmt.Printf("Received request for file: %s\n", requestedFile)
+
+	// Try to read the file
+	data, err := ioutil.ReadFile(requestedFile)
+	if err != nil {
+		log.Printf("Error reading file %s: %v\n", requestedFile, err)
+		s.Write([]byte(fmt.Sprintf("Error: %v\n", err)))
+		return
+	}
+
+	// Send the file content
+	s.Write(data)
+	fmt.Printf("Sent file: %s\n", requestedFile)
 }
