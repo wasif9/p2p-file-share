@@ -25,7 +25,7 @@ type Manifest struct {
 // Server Instance Configuration:
 // TODO: read this from a config.json or similar
 const index = 0 // the index of this DB instance
-const PORT = "8080"
+const PORT = "8081"
 const VERSION = "v1"
 const PG_PASSWORD = "password"
 
