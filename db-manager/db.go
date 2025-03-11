@@ -1,6 +1,9 @@
 package main
 
-import "gorm.io/gorm"
+import (
+	types "github.com/wasif9/p2p-file-share/pkg/models"
+	"gorm.io/gorm"
+)
 
 /***********************
 * This function inserts a record into the registry database
@@ -11,7 +14,7 @@ import "gorm.io/gorm"
 * 		None
 *
 ************************/
-func insertRecord(db *gorm.DB, record *Manifest) (newRecord Manifest, Error error) {
+func insertRecord(db *gorm.DB, record *types.Manifest) (newRecord types.Manifest, Error error) {
 
 	result := db.Create(&record)
 
@@ -30,7 +33,7 @@ func insertRecord(db *gorm.DB, record *Manifest) (newRecord Manifest, Error erro
 ************************/
 func deleteRecord(db *gorm.DB, filename string) (Error error) {
 
-	result := db.Where("name = ?", filename).Delete(&Manifest{})
+	result := db.Where("name = ?", filename).Delete(&types.Manifest{})
 
 	if result.RowsAffected == 0 {
 		return result.Error
@@ -49,7 +52,7 @@ func deleteRecord(db *gorm.DB, filename string) (Error error) {
 * 		[]Record record
 *
 ************************/
-func queryRecord(db *gorm.DB) (record []Manifest, Error error) {
+func queryRecord(db *gorm.DB) (record []types.Manifest, Error error) {
 
 	result := db.Find(&record)
 
@@ -66,7 +69,7 @@ func queryRecord(db *gorm.DB) (record []Manifest, Error error) {
 * 		Record record
 *
 ************************/
-func querySingleRecord(db *gorm.DB, filename string) (record Manifest, Error error) {
+func querySingleRecord(db *gorm.DB, filename string) (record types.Manifest, Error error) {
 
 	result := db.Where("name = ?", filename).First(&record)
 
