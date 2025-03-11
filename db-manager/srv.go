@@ -4,12 +4,25 @@ import (
 	"encoding/json"
 	"fmt"
 	"log"
+	"math/rand"
 	"net/http"
 	"os"
 	"strings"
+	"time"
 
 	"gorm.io/gorm"
 )
+
+var startTime time.Time
+
+// special func name that runs once at beginning
+func init() {
+	startTime = time.Now()
+}
+
+func GetUptime() time.Duration {
+	return time.Now().Sub(startTime)
+}
 
 // Handles http requests to the route '/records/{name}'
 // Only defined for GET and DELETE
@@ -82,4 +95,27 @@ func createRecordsHandler(db *gorm.DB) func(w http.ResponseWriter, r *http.Reque
 func killHandler(w http.ResponseWriter, r *http.Request) {
 	log.Println("Kill request recieved. Shutting down server.")
 	os.Exit(0)
+}
+
+// TODO: move this to common package so that client can use too
+type Heartbeat struct {
+	Index       int           `json:"node-index"`
+	Uptime      time.Duration `json:"uptime"`
+	Utilization int           `json:"utilization"`
+}
+
+func heartbeatHandler(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodGet {
+		http.Error(w, "Only GET is allowed", http.StatusMethodNotAllowed)
+		return
+	}
+
+	err := json.NewEncoder(w).Encode(&Heartbeat{
+		Index:       index,
+		Uptime:      GetUptime(),
+		Utilization: rand.Int() % 100,
+	})
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+	}
 }
