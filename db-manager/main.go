@@ -30,6 +30,7 @@ const VERSION = "v1"
 const PG_PASSWORD = "password"
 
 func main() {
+	log.SetFlags(log.LstdFlags | log.Lshortfile)
 
 	// Connection to the database
 	dsn := fmt.Sprintf("host=localhost user=postgres password=%s dbname=registry%d port=5432 sslmode=disable TimeZone=UTC", PG_PASSWORD, index)
@@ -37,6 +38,7 @@ func main() {
 	if err != nil {
 		log.Fatal(err)
 	}
+	log.Printf("Connected to database as %s", db.Name())
 
 	err = db.AutoMigrate(&Manifest{})
 	if err != nil {
@@ -45,8 +47,9 @@ func main() {
 
 	http.HandleFunc("/api/"+VERSION+"/records/", createRecordHandler(db))
 	http.HandleFunc("/api/"+VERSION+"/records", createRecordsHandler(db))
+	http.HandleFunc("/api/"+VERSION+"/kill", killHandler)
 
-	fmt.Printf("Server starting on port %s...\n", PORT)
+	log.Printf("Server starting on port %s...\n", PORT)
 	err = http.ListenAndServe(net.JoinHostPort("localhost", PORT), nil)
 	if err != nil {
 		log.Fatal(err)

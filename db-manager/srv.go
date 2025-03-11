@@ -3,7 +3,9 @@ package main
 import (
 	"encoding/json"
 	"fmt"
+	"log"
 	"net/http"
+	"os"
 	"strings"
 
 	"gorm.io/gorm"
@@ -75,4 +77,9 @@ func createRecordsHandler(db *gorm.DB) func(w http.ResponseWriter, r *http.Reque
 		}
 	}
 	return recordsHandler
+}
+
+func killHandler(w http.ResponseWriter, r *http.Request) {
+	log.Println("Kill request recieved. Shutting down server.")
+	os.Exit(0)
 }
