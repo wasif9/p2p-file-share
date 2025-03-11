@@ -16,9 +16,9 @@ import (
 	"gioui.org/widget/material"
 	libp2p "github.com/libp2p/go-libp2p"
 	"github.com/libp2p/go-libp2p/core/network"
-	"github.com/wasif9/p2p-file-share/discovery"
-	"github.com/wasif9/p2p-file-share/messaging"
-	"github.com/wasif9/p2p-file-share/transfer"
+	"github.com/wasif9/p2p-file-share/peer-app/discovery"
+	"github.com/wasif9/p2p-file-share/peer-app/messaging"
+	"github.com/wasif9/p2p-file-share/peer-app/transfer"
 )
 
 const (
