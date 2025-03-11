@@ -48,6 +48,7 @@ func main() {
 	http.HandleFunc("/api/"+VERSION+"/records/", createRecordHandler(db))
 	http.HandleFunc("/api/"+VERSION+"/records", createRecordsHandler(db))
 	http.HandleFunc("/api/"+VERSION+"/kill", killHandler)
+	http.HandleFunc("/api/"+VERSION+"/heartbeat", heartbeatHandler)
 
 	log.Printf("Server starting on port %s...\n", PORT)
 	err = http.ListenAndServe(net.JoinHostPort("localhost", PORT), nil)
