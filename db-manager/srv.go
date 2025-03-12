@@ -10,6 +10,7 @@ import (
 	"strings"
 	"time"
 
+	types "github.com/wasif9/p2p-file-share/pkg/models"
 	"gorm.io/gorm"
 )
 
@@ -65,7 +66,7 @@ func createRecordsHandler(db *gorm.DB) func(w http.ResponseWriter, r *http.Reque
 
 		switch r.Method {
 		case http.MethodPost:
-			var newManifest Manifest
+			var newManifest types.Manifest
 
 			err = json.NewDecoder(r.Body).Decode(&newManifest)
 			if err != nil {
@@ -97,20 +98,13 @@ func killHandler(w http.ResponseWriter, r *http.Request) {
 	os.Exit(0)
 }
 
-// TODO: move this to common package so that client can use too
-type Heartbeat struct {
-	Index       int           `json:"node-index"`
-	Uptime      time.Duration `json:"uptime"`
-	Utilization int           `json:"utilization"`
-}
-
 func heartbeatHandler(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodGet {
 		http.Error(w, "Only GET is allowed", http.StatusMethodNotAllowed)
 		return
 	}
 
-	err := json.NewEncoder(w).Encode(&Heartbeat{
+	err := json.NewEncoder(w).Encode(&types.Heartbeat{
 		Index:       index,
 		Uptime:      GetUptime(),
 		Utilization: rand.Int() % 100,

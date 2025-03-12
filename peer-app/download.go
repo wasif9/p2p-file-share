@@ -18,18 +18,13 @@ import (
 	"gioui.org/widget/material"
 	"github.com/libp2p/go-libp2p/core/host"
 	"github.com/libp2p/go-libp2p/core/peer"
+	types "github.com/wasif9/p2p-file-share/pkg/models"
 )
 
 type SearchData struct {
 	fileHash string
 	fileName string
 	fileSize string
-}
-
-// DB JSON struct
-type Manifest struct {
-	Name string `json:"name"`
-	Hash string `json:"hash"`
 }
 
 type DownloadUI struct {
@@ -277,7 +272,7 @@ func (ui *DownloadUI) Download(prgUI *ProgressUI) {
 		defer resp.Body.Close()
 
 		// Decode the JSON response
-		var manifest Manifest
+		var manifest types.Manifest
 		if err := json.NewDecoder(resp.Body).Decode(&manifest); err != nil {
 			log.Println("Decode Error:", err)
 			return

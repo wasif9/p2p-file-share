@@ -6,21 +6,12 @@ import (
 	"net"
 	"net/http"
 
+	types "github.com/wasif9/p2p-file-share/pkg/models"
 	"gorm.io/driver/postgres"
 	"gorm.io/gorm"
 )
 
 var err error
-
-// todo: move this to a models.go file/package
-/****************************************
-* Struct for the database records
-*
-* **************************************/
-type Manifest struct {
-	Name string `gorm:"primaryKey" json:"name"`
-	Hash string `json:"hash"`
-}
 
 // Server Instance Configuration:
 // TODO: read this from a config.json or similar
@@ -40,7 +31,7 @@ func main() {
 	}
 	log.Printf("Connected to database as %s", db.Name())
 
-	err = db.AutoMigrate(&Manifest{})
+	err = db.AutoMigrate(&types.Manifest{})
 	if err != nil {
 		log.Fatal(err)
 	}
