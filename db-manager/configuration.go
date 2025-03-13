@@ -14,20 +14,25 @@ type Configuration struct {
 	PG_PASSWORD string
 }
 
-func Configure() Configuration {
+var cfg Configuration
 
-	bytes, err := os.ReadFile("config.json")
+func init() {
+	if len(os.Args) < 2 {
+		log.Fatal("config file not provided")
+	}
+
+	configFilePath := os.Args[1]
+
+	bytes, err := os.ReadFile(configFilePath)
 	if err != nil {
 		log.Fatal(errors.Join(errors.New("Failed to read server configuration file"), err))
 	}
 	_ = bytes
-
-	var cfg Configuration
 
 	err = json.Unmarshal(bytes, &cfg)
 	if err != nil {
 		log.Fatal(err)
 	}
 
-	return cfg
+	log.Printf("Loaded configuration %+v from %s\n", cfg, configFilePath)
 }
