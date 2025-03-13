@@ -1,0 +1,6 @@
+{
+    "index": 0,
+    "PORT": "8081",
+    "VERSION": "v1",
+    "PG_PASSWORD": "password"
+}

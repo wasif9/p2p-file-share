@@ -12,19 +12,15 @@ import (
 )
 
 var err error
-
-// Server Instance Configuration:
-// TODO: read this from a config.json or similar
-const index = 0 // the index of this DB instance
-const PORT = "8081"
-const VERSION = "v1"
-const PG_PASSWORD = "password"
+var configuration Configuration
 
 func main() {
 	log.SetFlags(log.LstdFlags | log.Lshortfile)
 
+	configuration = Configure()
+
 	// Connection to the database
-	dsn := fmt.Sprintf("host=localhost user=postgres password=%s dbname=registry%d port=5432 sslmode=disable TimeZone=UTC", PG_PASSWORD, index)
+	dsn := fmt.Sprintf("host=localhost user=postgres password=%s dbname=registry%d port=5432 sslmode=disable TimeZone=UTC", configuration.PG_PASSWORD, configuration.index)
 	db, err := gorm.Open(postgres.Open(dsn), &gorm.Config{})
 	if err != nil {
 		log.Fatal(err)
@@ -36,13 +32,13 @@ func main() {
 		log.Fatal(err)
 	}
 
-	http.HandleFunc("/api/"+VERSION+"/records/", createRecordHandler(db))
-	http.HandleFunc("/api/"+VERSION+"/records", createRecordsHandler(db))
-	http.HandleFunc("/api/"+VERSION+"/kill", killHandler)
-	http.HandleFunc("/api/"+VERSION+"/heartbeat", heartbeatHandler)
+	http.HandleFunc("/api/"+configuration.VERSION+"/records/", createRecordHandler(db))
+	http.HandleFunc("/api/"+configuration.VERSION+"/records", createRecordsHandler(db))
+	http.HandleFunc("/api/"+configuration.VERSION+"/kill", killHandler)
+	http.HandleFunc("/api/"+configuration.VERSION+"/heartbeat", heartbeatHandler)
 
-	log.Printf("Server starting on port %s...\n", PORT)
-	err = http.ListenAndServe(net.JoinHostPort("localhost", PORT), nil)
+	log.Printf("Server starting on port %s...\n", configuration.PORT)
+	err = http.ListenAndServe(net.JoinHostPort("localhost", configuration.PORT), nil)
 	if err != nil {
 		log.Fatal(err)
 	}
