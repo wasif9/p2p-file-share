@@ -15,7 +15,6 @@ import (
 	"gioui.org/unit"
 	"gioui.org/widget"
 	"gioui.org/widget/material"
-	"github.com/libp2p/go-libp2p/core/host"
 	"github.com/libp2p/go-libp2p/core/peer"
 	types "github.com/wasif9/p2p-file-share/pkg/models"
 )
@@ -27,7 +26,6 @@ type SearchData struct {
 }
 
 type DownloadUI struct {
-	node         host.Host
 	searchInput  widget.Editor
 	searchButton widget.Clickable
 	// TODO search query
@@ -292,7 +290,7 @@ func (ui *DownloadUI) Download(prgUI *ProgressUI) {
 
 		tabSelected = ProgressTab
 
-		requestFile(ui.node, dhtLookup(ui.node, manifest.Hash), manifest.Name)
+		requestFile(dhtLookup(manifest.Hash), manifest.Name)
 
 		// Set the progress bar to 100% (hardcode for now)
 		downloadFile.Progress = 1
@@ -301,10 +299,10 @@ func (ui *DownloadUI) Download(prgUI *ProgressUI) {
 	}()
 }
 
-func requestFile(h host.Host, providerID peer.ID, fileName string) {
+func requestFile(providerID peer.ID, fileName string) {
 	// Open a new stream to the provider
 	ctx := context.Background()
-	s, err := h.NewStream(ctx, providerID, protocol)
+	s, err := node.NewStream(ctx, providerID, protocol)
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -336,7 +334,7 @@ func requestFile(h host.Host, providerID peer.ID, fileName string) {
 	fmt.Printf("Received and saved file as received_%s\n", fileName)
 }
 
-func dhtLookup(node host.Host, chunkHash string) peer.ID {
+func dhtLookup(chunkHash string) peer.ID {
 	// return the first non-self peer
 	for _, p := range node.Peerstore().Peers() {
 		if p != node.ID() {
