@@ -1,19 +1,17 @@
-## Run with 
+# Run with 
 ```bash
-go run ./main.go
+go run ./main.go config.json
 ```
 
 or 
 ```bash
-go run ./...
+go run ./... config.json
 ```
 
 ## Test with (in a separate terminal)
 ```bash
-curl localhost:8080/foo
+curl localhost:8081/api/v1/heartbeat
 ```
-
-Or just go to http://localhost:8080/whatever 🙂
 
 # Setting up DB
 
