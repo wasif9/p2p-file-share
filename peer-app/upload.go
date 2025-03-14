@@ -299,7 +299,7 @@ func (upload *UploadUI) UploadFile() {
 	manifest := types.Manifest{
 		Name: fileName,
 		Hash: fileHash,
-		// ! Filesize included in manifest file
+		// TODO Filesize included in manifest file
 		// Size: fileSize,
 	}
 
