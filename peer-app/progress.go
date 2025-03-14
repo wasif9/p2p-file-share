@@ -130,7 +130,6 @@ func (ui *ProgressUI) AddDownload(name string, hash string) *Download {
 	for _, file := range ui.files {
 		// Let checked file not to be shown in the list
 		if hash == file.Hash && file.Progress != 1 {
-			PopupMessage(name + " is downloading!")
 			return nil
 		}
 	}
