@@ -23,8 +23,9 @@ import (
 
 const (
 	LoadBalancerAdr = "http://localhost:8080"
+	DBManagerVer    = "v1"
+	protocol        = "/file-sharing/1.0.0"
 )
-const protocol = "/file-sharing/1.0.0"
 
 const (
 	DownloadTab = iota // 0
@@ -66,7 +67,7 @@ func main() {
 
 		tabButtons := make([]widget.Clickable, 3)
 
-		// DownloadUI instance
+		// DownloadUI state instance
 		dnUI := &DownloadUI{
 			list: widget.List{
 				List: layout.List{
@@ -76,7 +77,7 @@ func main() {
 			node: node,
 		}
 
-		// ProgressUI instance
+		// ProgressUI state instance
 		prgUI := &ProgressUI{
 			list: widget.List{
 				List: layout.List{
@@ -84,6 +85,15 @@ func main() {
 				},
 			},
 		}
+
+		// UploadUI state instance
+		upUI := &UploadUI{
+			dirPath: ".",
+			list: widget.List{
+				List: layout.List{Axis: layout.Vertical},
+			},
+		}
+		upUI.LoadFiles()
 
 		// Event
 		for {
@@ -110,7 +120,7 @@ func main() {
 						if tabSelected == DownloadTab {
 							return dnUI.DownloadLayout(gtx, th, prgUI)
 						} else if tabSelected == UploadTab {
-							return material.Body1(th, "Upload").Layout(gtx)
+							return upUI.UploadLayout(gtx, th)
 						} else {
 							return prgUI.ProgressLayout(gtx, th)
 						}
