@@ -295,6 +295,9 @@ func (upload *UploadUI) UploadFile() {
 	}
 	log.Println("File Hash = " + fileHash)
 
+	// Update DHTs
+	UpdateDHTs(fileName, filePath, fileHash)
+
 	// Create manifest file
 	manifest := types.Manifest{
 		Name: fileName,
@@ -339,4 +342,11 @@ func (upload *UploadUI) UploadFile() {
 	// Print the response from the server
 	log.Println("Resp Status: ", resp.Status)
 	log.Println("Resp Body: ", string(respSer))
+}
+
+// TODO
+// Update P2P DHTs
+func UpdateDHTs(fileName, filePath, fileHash string) {
+	// User node (global in main)
+	// node
 }
