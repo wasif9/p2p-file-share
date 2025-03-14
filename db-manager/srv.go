@@ -87,7 +87,14 @@ func createManifestsHandler(db *gorm.DB) func(w http.ResponseWriter, r *http.Req
 				return
 			}
 		case http.MethodGet: // returns all manifests
-			manifests, err := queryManifest(db)
+			var manifests []types.Manifest
+
+			if prefix := r.URL.Query().Get("prefix"); prefix != "" {
+				manifests, err = queryManifestByPrefix(db, prefix)
+			} else {
+				manifests, err = queryManifest(db)
+			}
+
 			if err != nil {
 				http.Error(w, fmt.Sprintf("Invalid request: %s", err.Error()), http.StatusBadRequest)
 				return
