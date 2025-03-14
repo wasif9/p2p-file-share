@@ -25,27 +25,27 @@ func GetUptime() time.Duration {
 	return time.Now().Sub(startTime)
 }
 
-// Handles http requests to the route '/records/{name}'
+// Handles http requests to the route '/manifests/{name}'
 // Only defined for GET and DELETE
-func createRecordHandler(db *gorm.DB) func(w http.ResponseWriter, r *http.Request) {
-	recordHandler := func(w http.ResponseWriter, r *http.Request) {
+func createManifestHandler(db *gorm.DB) func(w http.ResponseWriter, r *http.Request) {
+	manifestHandler := func(w http.ResponseWriter, r *http.Request) {
 
 		w.Header().Set("Content-Type", "application/json")
-		name := strings.TrimPrefix(r.URL.Path, "/api/"+cfg.Version+"/records/")
+		name := strings.TrimPrefix(r.URL.Path, "/api/"+cfg.Version+"/manifests/")
 
 		switch r.Method {
 		case http.MethodGet:
-			record, err := querySingleRecord(db, name)
+			manifest, err := querySingleManifest(db, name)
 			if err != nil {
 				http.Error(w, err.Error(), http.StatusInternalServerError)
 			}
 
-			err = json.NewEncoder(w).Encode(record)
+			err = json.NewEncoder(w).Encode(manifest)
 			if err != nil {
 				http.Error(w, err.Error(), http.StatusInternalServerError)
 			}
 		case http.MethodDelete:
-			err = deleteRecord(db, name)
+			err = deleteManifest(db, name)
 			if err != nil {
 				http.Error(w, err.Error(), http.StatusInternalServerError)
 			}
@@ -55,13 +55,13 @@ func createRecordHandler(db *gorm.DB) func(w http.ResponseWriter, r *http.Reques
 
 	}
 
-	return recordHandler
+	return manifestHandler
 }
 
-// Handles http requests to the route '/records'
+// Handles http requests to the route '/manifests'
 // Only defined for POST
-func createRecordsHandler(db *gorm.DB) func(w http.ResponseWriter, r *http.Request) {
-	recordsHandler := func(w http.ResponseWriter, r *http.Request) {
+func createManifestsHandler(db *gorm.DB) func(w http.ResponseWriter, r *http.Request) {
+	manifestsHandler := func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
 
 		switch r.Method {
@@ -74,7 +74,7 @@ func createRecordsHandler(db *gorm.DB) func(w http.ResponseWriter, r *http.Reque
 				return
 			}
 
-			createdManifest, err := insertRecord(db, &newManifest)
+			createdManifest, err := insertManifest(db, &newManifest)
 			if err != nil {
 				http.Error(w, err.Error(), http.StatusInternalServerError)
 				return
@@ -90,7 +90,7 @@ func createRecordsHandler(db *gorm.DB) func(w http.ResponseWriter, r *http.Reque
 			http.Error(w, fmt.Sprintf("Method %s not allowed.", r.Method), http.StatusMethodNotAllowed)
 		}
 	}
-	return recordsHandler
+	return manifestsHandler
 }
 
 func killHandler(w http.ResponseWriter, r *http.Request) {

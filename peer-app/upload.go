@@ -310,7 +310,7 @@ func (upload *UploadUI) UploadFile() {
 	}
 
 	// Create POST request
-	postReq := "/api/" + DBManagerVer + "/records"
+	postReq := "/api/" + DBManagerVer + "/manifests"
 	log.Println("Send POST " + postReq + " to " + LoadBalancerAdr)
 
 	req, err := http.NewRequest("POST", LoadBalancerAdr+postReq, bytes.NewBuffer(jsonData))
