@@ -5,9 +5,10 @@ import (
 	"encoding/json"
 	"fmt"
 	"image/color"
-	"io/ioutil"
+	"io"
 	"log"
 	"net/http"
+	"os"
 	"strings"
 
 	"gioui.org/app"
@@ -230,7 +231,7 @@ func (ui *DownloadUI) PerformSearch() {
 		return
 	}
 
-	// Dummy data for the query
+	// ! Dummy data for the query
 	ui.results = []SearchData{
 		{"abcdefg", "myfile.txt", "10 KB"},
 		// {"fileHash 2", "fileName2", "20 KB"},
@@ -313,7 +314,7 @@ func requestFile(h host.Host, providerID peer.ID, fileName string) {
 	s.Write([]byte(fileName + "\n"))
 
 	// Read the response
-	data, err := ioutil.ReadAll(s)
+	data, err := io.ReadAll(s)
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -326,7 +327,7 @@ func requestFile(h host.Host, providerID peer.ID, fileName string) {
 	}
 
 	// Write the file data to disk
-	err = ioutil.WriteFile("received_"+fileName, data, 0644)
+	err = os.WriteFile("received_"+fileName, data, 0644)
 	if err != nil {
 		log.Fatal(err)
 	}
