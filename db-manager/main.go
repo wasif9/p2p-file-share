@@ -9,6 +9,7 @@ import (
 	types "github.com/wasif9/p2p-file-share/pkg/models"
 	"gorm.io/driver/postgres"
 	"gorm.io/gorm"
+	"gorm.io/gorm/logger"
 )
 
 var err error
