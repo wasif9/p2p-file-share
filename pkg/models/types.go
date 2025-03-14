@@ -5,6 +5,7 @@ import "time"
 type Manifest struct {
 	Name string `gorm:"primaryKey" json:"name"`
 	Hash string `json:"hash"`
+	Size int64  `json:"size"`
 }
 
 type Heartbeat struct {

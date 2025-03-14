@@ -196,7 +196,7 @@ func (ui *DownloadUI) PerformSearch() {
 	// TODO search query
 	/*
 		// Make GET request to the load balancer server
-		getReq := "/api/" + DBManagerVer + "/records/" + query
+		getReq := "/api/" + DBManagerVer + "/manifests/" + query
 		log.Println("Send GET " + getReq + " to " + LoadBalancerAdr)
 
 		// Send GET requet
@@ -262,7 +262,7 @@ func (ui *DownloadUI) Download(prgUI *ProgressUI) {
 		}
 
 		// Make GET request to the load balancer server
-		getReq := "/api/" + DBManagerVer + "/records/" + fileName
+		getReq := "/api/" + DBManagerVer + "/manifests/" + fileName
 		log.Println("Send GET " + getReq + " to " + LoadBalancerAdr)
 
 		// Send GET requet

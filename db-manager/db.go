@@ -6,24 +6,24 @@ import (
 )
 
 /***********************
-* This function inserts a record into the registry database
+* This function inserts a manifest into the registry database
 * Input:
 *		*gorm.DB db
-* 		struct Record record
+* 		struct Manifest manifest
 * Returns:
 * 		None
 *
 ************************/
-func insertRecord(db *gorm.DB, record *types.Manifest) (newRecord types.Manifest, Error error) {
+func insertManifest(db *gorm.DB, manifest *types.Manifest) (newManifest types.Manifest, Error error) {
 
-	result := db.Create(&record)
+	result := db.Create(&manifest)
 
-	return *record, result.Error
+	return *manifest, result.Error
 
 }
 
 /***********************
-* This function deletes a record by filename from the registry database.
+* This function deletes a manifest by filename from the registry database.
 * Input:
 *		*gorm.DB db
 * 		string filename
@@ -31,7 +31,7 @@ func insertRecord(db *gorm.DB, record *types.Manifest) (newRecord types.Manifest
 * 		None
 *
 ************************/
-func deleteRecord(db *gorm.DB, filename string) (Error error) {
+func deleteManifest(db *gorm.DB, filename string) (Error error) {
 
 	result := db.Where("name = ?", filename).Delete(&types.Manifest{})
 
@@ -44,35 +44,35 @@ func deleteRecord(db *gorm.DB, filename string) (Error error) {
 }
 
 /***********************
-* This function queries the database for all the records. It returns an array of
-* all the records
+* This function queries the database for all the manifests. It returns an array of
+* all the manifests
 * Input:
 *		*gorm.DB db
 * Returns:
-* 		[]Record record
+* 		[]Manifest manifest
 *
 ************************/
-func queryRecord(db *gorm.DB) (record []types.Manifest, Error error) {
+func queryManifest(db *gorm.DB) (manifest []types.Manifest, Error error) {
 
-	result := db.Find(&record)
+	result := db.Find(&manifest)
 
-	return record, result.Error
+	return manifest, result.Error
 
 }
 
 /***********************
-* This function queries the database for a file and returns the record for the file.
+* This function queries the database for a file and returns the manifest for the file.
 * Input:
 *		*gorm.DB db
 * 		filename
 * Returns:
-* 		Record record
+* 		Manifest manifest
 *
 ************************/
-func querySingleRecord(db *gorm.DB, filename string) (record types.Manifest, Error error) {
+func querySingleManifest(db *gorm.DB, filename string) (manifest types.Manifest, Error error) {
 
-	result := db.Where("name = ?", filename).First(&record)
+	result := db.Where("name = ?", filename).First(&manifest)
 
-	return record, result.Error
+	return manifest, result.Error
 
 }

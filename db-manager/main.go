@@ -28,8 +28,8 @@ func main() {
 		log.Fatal(err)
 	}
 
-	http.HandleFunc("/api/"+cfg.Version+"/records/", createRecordHandler(db))
-	http.HandleFunc("/api/"+cfg.Version+"/records", createRecordsHandler(db))
+	http.HandleFunc("/api/"+cfg.Version+"/manifests/", createManifestHandler(db))
+	http.HandleFunc("/api/"+cfg.Version+"/manifests", createManifestsHandler(db))
 	http.HandleFunc("/api/"+cfg.Version+"/kill", killHandler)
 	http.HandleFunc("/api/"+cfg.Version+"/heartbeat", heartbeatHandler)
 
