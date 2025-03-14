@@ -1,12 +1,8 @@
 # Run with 
 ```bash
-go run ./main.go config.json
-```
-
-or 
-```bash
 go run ./... config.json
 ```
+From inside `db-manager`
 
 ## Test with (in a separate terminal)
 ```bash
