@@ -130,7 +130,6 @@ func (ui *ProgressUI) AddDownload(name string, hash string) *Download {
 	for _, file := range ui.files {
 		// Let checked file not to be shown in the list
 		if hash == file.Hash && file.Progress != 1 {
-			PopupMessage(name + " is downloading!")
 			return nil
 		}
 	}
@@ -148,8 +147,13 @@ func (ui *ProgressUI) DeleteCheckedFiles() {
 	for i := range ui.files {
 		// Let checked file not to be shown in the list
 		if ui.files[i].Checked.Value {
-			ui.files[i].Shown = false
-			log.Println(ui.files[i].Name + " is removed from the list")
+			if ui.files[i].Progress != 1 {
+				// TODO (low priority) need a function in P2P to stop downloading
+				PopupMessage("Cannot delete files that are downloading!")
+			} else {
+				ui.files[i].Shown = false
+				log.Println(ui.files[i].Name + " is removed from the list")
+			}
 		}
 	}
 }

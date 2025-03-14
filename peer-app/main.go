@@ -4,8 +4,8 @@ import (
 	"bufio"
 	"fmt"
 	"image/color"
-	"io/ioutil"
 	"log"
+	"os"
 	"strings"
 
 	"gioui.org/app"
@@ -23,8 +23,9 @@ import (
 
 const (
 	LoadBalancerAdr = "http://localhost:8080"
+	DBManagerVer    = "v1"
+	protocol        = "/file-sharing/1.0.0"
 )
-const protocol = "/file-sharing/1.0.0"
 
 const (
 	DownloadTab = iota // 0
@@ -66,7 +67,7 @@ func main() {
 
 		tabButtons := make([]widget.Clickable, 3)
 
-		// DownloadUI instance
+		// DownloadUI state instance
 		dnUI := &DownloadUI{
 			list: widget.List{
 				List: layout.List{
@@ -76,7 +77,7 @@ func main() {
 			node: node,
 		}
 
-		// ProgressUI instance
+		// ProgressUI state instance
 		prgUI := &ProgressUI{
 			list: widget.List{
 				List: layout.List{
@@ -84,6 +85,15 @@ func main() {
 				},
 			},
 		}
+
+		// UploadUI state instance
+		upUI := &UploadUI{
+			dirPath: ".",
+			list: widget.List{
+				List: layout.List{Axis: layout.Vertical},
+			},
+		}
+		upUI.LoadFiles()
 
 		// Event
 		for {
@@ -99,9 +109,9 @@ func main() {
 					// Tabs on the left
 					layout.Rigid(func(gtx layout.Context) layout.Dimensions {
 						return layout.Flex{Axis: layout.Vertical}.Layout(gtx,
-							tab_Btn(th, gtx, &tabButtons[0], "Download", DownloadTab),
-							tab_Btn(th, gtx, &tabButtons[1], "Upload", UploadTab),
-							tab_Btn(th, gtx, &tabButtons[2], "Progress", ProgressTab),
+							tab_Btn(th, &tabButtons[0], "Download", DownloadTab),
+							tab_Btn(th, &tabButtons[1], "Upload", UploadTab),
+							tab_Btn(th, &tabButtons[2], "Progress", ProgressTab),
 						)
 					}),
 
@@ -110,7 +120,7 @@ func main() {
 						if tabSelected == DownloadTab {
 							return dnUI.DownloadLayout(gtx, th, prgUI)
 						} else if tabSelected == UploadTab {
-							return material.Body1(th, "Upload").Layout(gtx)
+							return upUI.UploadLayout(gtx, th)
 						} else {
 							return prgUI.ProgressLayout(gtx, th)
 						}
@@ -123,7 +133,7 @@ func main() {
 	app.Main()
 }
 
-func tab_Btn(th *material.Theme, gtx layout.Context, button *widget.Clickable, title string, tab int) layout.FlexChild {
+func tab_Btn(th *material.Theme, button *widget.Clickable, title string, tab int) layout.FlexChild {
 	return layout.Flexed(0.7, func(gtx layout.Context) layout.Dimensions {
 		// Padding
 		inset := layout.Inset{
@@ -169,7 +179,7 @@ func handleFileRequest(s network.Stream) {
 	fmt.Printf("Received request for file: %s\n", requestedFile)
 
 	// Try to read the file
-	data, err := ioutil.ReadFile(requestedFile)
+	data, err := os.ReadFile(requestedFile)
 	if err != nil {
 		log.Printf("Error reading file %s: %v\n", requestedFile, err)
 		s.Write([]byte(fmt.Sprintf("Error: %v\n", err)))

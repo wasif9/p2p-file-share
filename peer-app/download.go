@@ -5,14 +5,13 @@ import (
 	"encoding/json"
 	"fmt"
 	"image/color"
-	"io/ioutil"
+	"io"
 	"log"
 	"net/http"
+	"os"
 	"strings"
 
-	"gioui.org/app"
 	"gioui.org/layout"
-	"gioui.org/op"
 	"gioui.org/unit"
 	"gioui.org/widget"
 	"gioui.org/widget/material"
@@ -22,15 +21,18 @@ import (
 )
 
 type SearchData struct {
-	fileHash string
-	fileName string
-	fileSize string
+	Hash string
+	Name string
+	Size string
 }
 
 type DownloadUI struct {
-	node           host.Host
-	searchInput    widget.Editor
-	searchButton   widget.Clickable
+	node         host.Host
+	searchInput  widget.Editor
+	searchButton widget.Clickable
+	// TODO search query
+	// results        []types.Manifest
+	// selectedResult types.Manifest
 	results        []SearchData
 	selectedResult SearchData
 	resultButtons  []widget.Clickable
@@ -126,8 +128,8 @@ func (ui *DownloadUI) LayoutResults(gtx layout.Context, th *material.Theme, prgU
 
 					// Apply the padding and layout the button
 					return inset.Layout(gtx, func(gtx layout.Context) layout.Dimensions {
-						dispaly_str := ui.results[i].fileName + strings.Repeat(" ", 30-len(ui.results[i].fileName)) +
-							"| Size: " + strings.Repeat(" ", 8-len(ui.results[i].fileSize)) + ui.results[i].fileSize
+						dispaly_str := ui.results[i].Name + strings.Repeat(" ", 30-len(ui.results[i].Name)) +
+							"| Size: " + strings.Repeat(" ", 8-len(ui.results[i].Size)) + ui.results[i].Size
 						button := material.Button(th, btn, dispaly_str)
 
 						// Different style for selected items
@@ -180,57 +182,56 @@ func (ui *DownloadUI) LayoutResults(gtx layout.Context, th *material.Theme, prgU
 	})
 }
 
-func PopupMessage(message string) {
-	go func() {
-		popupWindow := new(app.Window)
-		popupWindow.Option(app.Title("P2P File Share"))
-		popupWindow.Option(app.Size(unit.Dp(400), unit.Dp(200)))
-
-		thPopup := material.NewTheme()
-		var popupOps op.Ops
-
-		// Run the popup window
-		for {
-			popupEvent := popupWindow.Event()
-			switch popupEvent := popupEvent.(type) {
-			case app.FrameEvent:
-				popupGtx := app.NewContext(&popupOps, popupEvent)
-
-				// Display the message in the popup window
-				layout.Flex{Axis: layout.Vertical}.Layout(popupGtx,
-					layout.Flexed(1, func(popupGtx layout.Context) layout.Dimensions {
-						return layout.Flex{Axis: layout.Horizontal}.Layout(popupGtx,
-							layout.Flexed(1, func(popupGtx layout.Context) layout.Dimensions {
-								return layout.Center.Layout(popupGtx, func(popupGtx layout.Context) layout.Dimensions {
-									text := material.Body1(thPopup, message)
-									text.Color = color.NRGBA{R: 255, A: 255}
-									text.TextSize = unit.Sp(20)
-									return text.Layout(popupGtx)
-								})
-							}),
-						)
-					}),
-				)
-
-				popupEvent.Frame(popupGtx.Ops)
-
-			case app.DestroyEvent:
-				return
-			}
-		}
-	}()
-}
-
 func (ui *DownloadUI) PerformSearch() {
 	query := strings.TrimSpace(ui.searchInput.Text())
 
 	if query == "" {
+		// TODO search query
+		// ui.results = []types.Manifest{}
 		ui.results = []SearchData{}
 		ui.resultButtons = nil
 		return
 	}
 
-	// Dummy data for the query
+	// TODO search query
+	/*
+		// Make GET request to the load balancer server
+		getReq := "/api/" + DBManagerVer + "/records/" + query
+		log.Println("Send GET " + getReq + " to " + LoadBalancerAdr)
+
+		// Send GET requet
+		resp, err := http.Get(LoadBalancerAdr + getReq)
+		if err != nil {
+			log.Println("Error when sending search query request", err)
+			return
+		}
+		defer resp.Body.Close()
+
+		// Check for successful response status
+		if resp.StatusCode != http.StatusOK {
+			log.Println("Error receiving non-OK response", resp.Status)
+			return
+		}
+
+		// Read the response body
+		respSer, err := io.ReadAll(resp.Body)
+		if err != nil {
+			log.Println("Error reading response body:", err)
+			return
+		}
+
+		// Decode the JSON response
+		var manifests []types.Manifest
+		if err := json.Unmarshal(respSer, &manifests); err != nil {
+			log.Println("Decode Error:", err)
+			return
+		}
+
+		// Change the GUI search result
+		ui.results = manifests
+	*/
+
+	// ! Dummy data for the query
 	ui.results = []SearchData{
 		{"abcdefg", "myfile.txt", "10 KB"},
 		// {"fileHash 2", "fileName2", "20 KB"},
@@ -250,17 +251,18 @@ func (ui *DownloadUI) PerformSearch() {
 
 func (ui *DownloadUI) Download(prgUI *ProgressUI) {
 	go func() {
-		fileName := ui.selectedResult.fileName
+		fileName := ui.selectedResult.Name
 		// Add file to the progress page
-		downloadFile := prgUI.AddDownload(fileName, ui.selectedResult.fileHash)
+		downloadFile := prgUI.AddDownload(fileName, ui.selectedResult.Hash)
 
 		// Not process to download since file is downloading
 		if downloadFile == nil {
+			PopupMessage(fileName + " is downloading!")
 			return
 		}
 
 		// Make GET request to the load balancer server
-		getReq := "/api/v1/records/" + fileName
+		getReq := "/api/" + DBManagerVer + "/records/" + fileName
 		log.Println("Send GET " + getReq + " to " + LoadBalancerAdr)
 
 		// Send GET requet
@@ -313,7 +315,7 @@ func requestFile(h host.Host, providerID peer.ID, fileName string) {
 	s.Write([]byte(fileName + "\n"))
 
 	// Read the response
-	data, err := ioutil.ReadAll(s)
+	data, err := io.ReadAll(s)
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -326,7 +328,7 @@ func requestFile(h host.Host, providerID peer.ID, fileName string) {
 	}
 
 	// Write the file data to disk
-	err = ioutil.WriteFile("received_"+fileName, data, 0644)
+	err = os.WriteFile("received_"+fileName, data, 0644)
 	if err != nil {
 		log.Fatal(err)
 	}
