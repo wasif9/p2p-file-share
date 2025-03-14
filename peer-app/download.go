@@ -20,12 +20,6 @@ import (
 	types "github.com/wasif9/p2p-file-share/pkg/models"
 )
 
-type SearchData struct {
-	Hash string
-	Name string
-	Size string
-}
-
 type DownloadUI struct {
 	node         host.Host
 	searchInput  widget.Editor
@@ -33,8 +27,8 @@ type DownloadUI struct {
 	// TODO search query
 	// results        []types.Manifest
 	// selectedResult types.Manifest
-	results        []SearchData
-	selectedResult SearchData
+	results        []types.Manifest
+	selectedResult types.Manifest
 	resultButtons  []widget.Clickable
 	list           widget.List
 	downloadButton widget.Clickable
@@ -128,9 +122,9 @@ func (ui *DownloadUI) LayoutResults(gtx layout.Context, th *material.Theme, prgU
 
 					// Apply the padding and layout the button
 					return inset.Layout(gtx, func(gtx layout.Context) layout.Dimensions {
-						dispaly_str := ui.results[i].Name + strings.Repeat(" ", 30-len(ui.results[i].Name)) +
-							"| Size: " + strings.Repeat(" ", 8-len(ui.results[i].Size)) + ui.results[i].Size
-						button := material.Button(th, btn, dispaly_str)
+
+						display_str := fmt.Sprintf("%s | %d", ui.results[i].Name, ui.results[i].Size)
+						button := material.Button(th, btn, display_str)
 
 						// Different style for selected items
 						if isSelected {
@@ -185,65 +179,40 @@ func (ui *DownloadUI) LayoutResults(gtx layout.Context, th *material.Theme, prgU
 func (ui *DownloadUI) PerformSearch() {
 	query := strings.TrimSpace(ui.searchInput.Text())
 
-	if query == "" {
-		// TODO search query
-		// ui.results = []types.Manifest{}
-		ui.results = []SearchData{}
-		ui.resultButtons = nil
+	// Make GET request to the load balancer server
+	getReq := "/api/" + DBManagerVer + "/manifests?prefix=" + query
+	log.Println("Send GET " + getReq + " to " + LoadBalancerAdr)
+
+	// Send GET requet
+	resp, err := http.Get(LoadBalancerAdr + getReq)
+	if err != nil {
+		log.Println("Error when sending search query request", err)
+		return
+	}
+	defer resp.Body.Close()
+
+	// Check for successful response status
+	if resp.StatusCode != http.StatusOK {
+		log.Println("Error receiving non-OK response", resp.Status)
 		return
 	}
 
-	// TODO search query
-	/*
-		// Make GET request to the load balancer server
-		getReq := "/api/" + DBManagerVer + "/manifests/" + query
-		log.Println("Send GET " + getReq + " to " + LoadBalancerAdr)
-
-		// Send GET requet
-		resp, err := http.Get(LoadBalancerAdr + getReq)
-		if err != nil {
-			log.Println("Error when sending search query request", err)
-			return
-		}
-		defer resp.Body.Close()
-
-		// Check for successful response status
-		if resp.StatusCode != http.StatusOK {
-			log.Println("Error receiving non-OK response", resp.Status)
-			return
-		}
-
-		// Read the response body
-		respSer, err := io.ReadAll(resp.Body)
-		if err != nil {
-			log.Println("Error reading response body:", err)
-			return
-		}
-
-		// Decode the JSON response
-		var manifests []types.Manifest
-		if err := json.Unmarshal(respSer, &manifests); err != nil {
-			log.Println("Decode Error:", err)
-			return
-		}
-
-		// Change the GUI search result
-		ui.results = manifests
-	*/
-
-	// ! Dummy data for the query
-	ui.results = []SearchData{
-		{"abcdefg", "myfile.txt", "10 KB"},
-		// {"fileHash 2", "fileName2", "20 KB"},
-		// {"fileHash 3", "fileName3", "30 KB"},
-		// {"fileHash 4", "fileName4", "40 KB"},
-		// {"fileHash 5", "fileName5", "50 KB"},
-		// {"fileHash 6", "fileName6", "10 MB"},
-		// {"fileHash 7", "fileName7", "10 GB"},
-		// {"fileHash 8", "fileName8", "10 TB"},
-		// {"fileHash 9", "fileName9", "1 KB"},
-		// {"fileHash 10", "fileName10", "100 KB"},
+	// Read the response body
+	respSer, err := io.ReadAll(resp.Body)
+	if err != nil {
+		log.Println("Error reading response body:", err)
+		return
 	}
+
+	// Decode the JSON response
+	var manifests []types.Manifest
+	if err := json.Unmarshal(respSer, &manifests); err != nil {
+		log.Println("Decode Error:", err)
+		return
+	}
+
+	// Change the GUI search result
+	ui.results = manifests
 
 	// Make buttons to select the result
 	ui.resultButtons = make([]widget.Clickable, len(ui.results))
