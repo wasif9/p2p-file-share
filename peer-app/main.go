@@ -15,6 +15,7 @@ import (
 	"gioui.org/widget"
 	"gioui.org/widget/material"
 	libp2p "github.com/libp2p/go-libp2p"
+	"github.com/libp2p/go-libp2p/core/host"
 	"github.com/libp2p/go-libp2p/core/network"
 	"github.com/wasif9/p2p-file-share/peer-app/discovery"
 	"github.com/wasif9/p2p-file-share/peer-app/messaging"
@@ -34,6 +35,7 @@ const (
 )
 
 var tabSelected = DownloadTab
+var node host.Host
 
 func main() {
 	log.SetFlags(log.LstdFlags | log.Lshortfile)
@@ -74,7 +76,6 @@ func main() {
 					Axis: layout.Vertical,
 				},
 			},
-			node: node,
 		}
 
 		// ProgressUI state instance
