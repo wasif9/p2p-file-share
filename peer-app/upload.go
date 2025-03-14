@@ -299,8 +299,7 @@ func (upload *UploadUI) UploadFile() {
 	manifest := types.Manifest{
 		Name: fileName,
 		Hash: fileHash,
-		// TODO Filesize included in manifest file
-		// Size: fileSize,
+		Size: fileSize,
 	}
 
 	// Marshal to JSON file
