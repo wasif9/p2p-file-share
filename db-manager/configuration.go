@@ -8,10 +8,10 @@ import (
 )
 
 type Configuration struct {
-	index       int
-	PORT        string
-	VERSION     string
-	PG_PASSWORD string
+	Index       int    `json:"index"`
+	Port        string `json:"port"`
+	Version     string `json:"version"`
+	Pg_password string `json:"pg-password"`
 }
 
 var cfg Configuration

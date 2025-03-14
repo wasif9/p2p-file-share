@@ -31,7 +31,7 @@ func createRecordHandler(db *gorm.DB) func(w http.ResponseWriter, r *http.Reques
 	recordHandler := func(w http.ResponseWriter, r *http.Request) {
 
 		w.Header().Set("Content-Type", "application/json")
-		name := strings.TrimPrefix(r.URL.Path, "/api/"+cfg.VERSION+"/records/")
+		name := strings.TrimPrefix(r.URL.Path, "/api/"+cfg.Version+"/records/")
 
 		switch r.Method {
 		case http.MethodGet:
@@ -105,7 +105,7 @@ func heartbeatHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	err := json.NewEncoder(w).Encode(&types.Heartbeat{
-		Index:       cfg.index,
+		Index:       cfg.Index,
 		Uptime:      GetUptime(),
 		Utilization: rand.Int() % 100,
 	})

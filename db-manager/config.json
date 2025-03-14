@@ -1,6 +1,6 @@
 {
-    "index": 0,
-    "PORT": "8081",
-    "VERSION": "v1",
-    "PG_PASSWORD": "password"
+    "index": 2,
+    "port": "8081",
+    "version": "v1",
+    "pg-password": "password"
 }
