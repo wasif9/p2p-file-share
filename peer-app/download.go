@@ -20,11 +20,8 @@ import (
 )
 
 type DownloadUI struct {
-	searchInput  widget.Editor
-	searchButton widget.Clickable
-	// TODO search query
-	// results        []types.Manifest
-	// selectedResult types.Manifest
+	searchInput    widget.Editor
+	searchButton   widget.Clickable
 	results        []types.Manifest
 	selectedResult types.Manifest
 	resultButtons  []widget.Clickable
@@ -48,7 +45,17 @@ func (ui *DownloadUI) DownloadLayout(gtx layout.Context, th *material.Theme, prg
 
 					return inset.Layout(gtx, func(gtx layout.Context) layout.Dimensions {
 						ui.searchInput.SingleLine = true
-						return material.Editor(th, &ui.searchInput, "Search for files ...").Layout(gtx)
+						ui.searchInput.Submit = true
+						textInput := material.Editor(th, &ui.searchInput, "Search for files ...")
+
+						// Detect Enter pressed
+						if e, ok := ui.searchInput.Update(gtx); ok {
+							if _, isSubmit := e.(widget.SubmitEvent); isSubmit {
+								ui.PerformSearch()
+							}
+						}
+
+						return textInput.Layout(gtx)
 					})
 				}),
 
