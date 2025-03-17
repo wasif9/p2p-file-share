@@ -52,11 +52,19 @@ func deleteManifest(db *gorm.DB, filename string) (Error error) {
 * 		[]Manifest manifest
 *
 ************************/
-func queryManifest(db *gorm.DB) (manifest []types.Manifest, Error error) {
+func queryManifest(db *gorm.DB) (manifests []types.Manifest, Error error) {
 
-	result := db.Find(&manifest)
+	result := db.Find(&manifests)
 
-	return manifest, result.Error
+	return manifests, result.Error
+
+}
+
+func queryManifestByPrefix(db *gorm.DB, prefix string) (manifests []types.Manifest, Error error) {
+
+	result := db.Where("name LIKE ?", prefix+"%").Find(&manifests)
+
+	return manifests, result.Error
 
 }
 

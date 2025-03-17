@@ -13,7 +13,6 @@ import (
 	"os"
 	"path/filepath"
 	"sort"
-	"strconv"
 	"sync"
 
 	"gioui.org/layout"
@@ -285,7 +284,6 @@ func (upload *UploadUI) UploadFile() {
 		log.Println("Error when getting file size: ", err)
 		return
 	}
-	log.Println("File Size = " + strconv.FormatInt(fileSize, 10) + " bytes")
 
 	// Get file hash
 	fileHash, err := GetFileHash(filePath)
@@ -293,7 +291,6 @@ func (upload *UploadUI) UploadFile() {
 		log.Println("Error when getting file hash: ", err)
 		return
 	}
-	log.Println("File Hash = " + fileHash)
 
 	// Update DHTs
 	UpdateDHTs(fileName, filePath, fileHash)
@@ -314,12 +311,13 @@ func (upload *UploadUI) UploadFile() {
 
 	// Create POST request
 	postReq := "/api/" + DBManagerVer + "/manifests"
-	log.Println("Send POST " + postReq + " to " + LoadBalancerAdr)
 
 	req, err := http.NewRequest("POST", LoadBalancerAdr+postReq, bytes.NewBuffer(jsonData))
 	if err != nil {
 		log.Println("Error when creating POST request: ", err)
+		return
 	}
+	log.Println("Send POST " + postReq + " to " + LoadBalancerAdr + " with JSON " + string(jsonData))
 
 	req.Header.Set("Content-Type", "application/json")
 

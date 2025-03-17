@@ -86,6 +86,26 @@ func createManifestsHandler(db *gorm.DB) func(w http.ResponseWriter, r *http.Req
 				http.Error(w, err.Error(), http.StatusInternalServerError)
 				return
 			}
+		case http.MethodGet: // returns all manifests
+			var manifests []types.Manifest
+
+			if prefix := r.URL.Query().Get("prefix"); prefix != "" {
+				manifests, err = queryManifestByPrefix(db, prefix)
+			} else {
+				manifests, err = queryManifest(db)
+			}
+
+			if err != nil {
+				http.Error(w, fmt.Sprintf("Invalid request: %s", err.Error()), http.StatusBadRequest)
+				return
+			}
+
+			w.WriteHeader(http.StatusOK)
+			err = json.NewEncoder(w).Encode(manifests)
+			if err != nil {
+				http.Error(w, err.Error(), http.StatusInternalServerError)
+				return
+			}
 		default:
 			http.Error(w, fmt.Sprintf("Method %s not allowed.", r.Method), http.StatusMethodNotAllowed)
 		}
