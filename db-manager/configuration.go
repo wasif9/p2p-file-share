@@ -11,7 +11,11 @@ type Configuration struct {
 	Index       int    `json:"index"`
 	Port        string `json:"port"`
 	Version     string `json:"version"`
+	Pg_host     string `json:"pg-host"`
+	Pg_user     string `json:"pg-user"`
 	Pg_password string `json:"pg-password"`
+	Pg_database string `json:"pg-database"`
+	Pg_port     string `json:"pg-port"`
 }
 
 var cfg Configuration
