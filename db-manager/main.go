@@ -19,10 +19,12 @@ func main() {
 
 	// Connection to the database
 	dsn := fmt.Sprintf(
-    "host=%s user=%s password=%s dbname=registry%d port=%s sslmode=disable TimeZone=UTC",
-    cfg.Pg_host, cfg.Pg_user, cfg.Pg_password, cfg.Index, cfg.Pg_port,
-)
-	db, err := gorm.Open(postgres.Open(dsn), &gorm.Config{})
+		"host=%s user=%s password=%s dbname=registry%d port=%s sslmode=disable TimeZone=UTC",
+		cfg.Pg_host, cfg.Pg_user, cfg.Pg_password, cfg.Index, cfg.Pg_port,
+	)
+	db, err := gorm.Open(postgres.Open(dsn), &gorm.Config{
+		Logger: logger.Default.LogMode(logger.Info),
+	})
 	if err != nil {
 		log.Fatal(err)
 	}
