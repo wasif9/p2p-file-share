@@ -5,62 +5,77 @@ import (
 	"encoding/json"
 	"fmt"
 	"image/color"
-	"io/ioutil"
+	"io"
 	"log"
 	"net/http"
+	"os"
+	"path/filepath"
 	"strings"
 
-	"gioui.org/app"
 	"gioui.org/layout"
-	"gioui.org/op"
 	"gioui.org/unit"
 	"gioui.org/widget"
 	"gioui.org/widget/material"
-
+	"github.com/ipfs/go-cid"
+	dht "github.com/libp2p/go-libp2p-kad-dht"
 	"github.com/libp2p/go-libp2p/core/host"
 	"github.com/libp2p/go-libp2p/core/peer"
-
-	dht "github.com/libp2p/go-libp2p-kad-dht"
-	// your local "pkg/models" for Manifest
 	types "github.com/wasif9/p2p-file-share/pkg/models"
 )
 
-// You had this data structure from your snippet
-type SearchData struct {
-	fileHash string
-	fileName string
-	fileSize string
-}
-
-// DownloadUI now has kadDHT so we can do real lookups.
 type DownloadUI struct {
 	node   host.Host
 	kadDHT *dht.IpfsDHT // <-- Add this to do real DHT lookups
 
 	searchInput    widget.Editor
 	searchButton   widget.Clickable
-	results        []SearchData
-	selectedResult SearchData
+	results        []types.Manifest
+	selectedResult types.Manifest
 	resultButtons  []widget.Clickable
 	list           widget.List
+	dirPath        string // The directory where downloaded files should be saved
 	downloadButton widget.Clickable
 }
 
-// The rest of your UI code remains mostly the same...
-// DownloadLayout draws your search bar + search results list
 func (ui *DownloadUI) DownloadLayout(gtx layout.Context, th *material.Theme, prgUI *ProgressUI) layout.Dimensions {
 	return layout.Flex{Axis: layout.Vertical}.Layout(gtx,
+		// Upper part for text search
 		layout.Rigid(func(gtx layout.Context) layout.Dimensions {
 			return layout.Flex{Axis: layout.Horizontal}.Layout(gtx,
+				// Text bar
 				layout.Flexed(1, func(gtx layout.Context) layout.Dimensions {
-					inset := layout.Inset{Top: 10, Right: 20, Left: 20}
+					// Padding
+					inset := layout.Inset{
+						Top:   10,
+						Right: 20,
+						Left:  20,
+					}
+
 					return inset.Layout(gtx, func(gtx layout.Context) layout.Dimensions {
 						ui.searchInput.SingleLine = true
-						return material.Editor(th, &ui.searchInput, "Search for files ...").Layout(gtx)
+						ui.searchInput.Submit = true
+						textInput := material.Editor(th, &ui.searchInput, "Search for files ...")
+
+						// Detect Enter pressed
+						if e, ok := ui.searchInput.Update(gtx); ok {
+							if _, isSubmit := e.(widget.SubmitEvent); isSubmit {
+								ui.PerformSearch()
+							}
+						}
+
+						return textInput.Layout(gtx)
 					})
 				}),
+
+				//Search Button
 				layout.Rigid(func(gtx layout.Context) layout.Dimensions {
-					inset := layout.Inset{Top: 10, Right: 20, Left: 20}
+					// Padding
+					inset := layout.Inset{
+						Top:   10,
+						Right: 20,
+						Left:  20,
+					}
+
 					return inset.Layout(gtx, func(gtx layout.Context) layout.Dimensions {
 						btn := material.Button(th, &ui.searchButton, "Search")
 						if ui.searchButton.Clicked(gtx) {
@@ -71,14 +86,16 @@ func (ui *DownloadUI) DownloadLayout(gtx layout.Context, th *material.Theme, prg
 				}),
 			)
 		}),
+
+		// Lower part for search results
 		layout.Rigid(func(gtx layout.Context) layout.Dimensions {
 			return ui.LayoutResults(gtx, th, prgUI)
 		}),
 	)
 }
 
-// LayoutResults lists your search hits with a "Download" button
 func (ui *DownloadUI) LayoutResults(gtx layout.Context, th *material.Theme, prgUI *ProgressUI) layout.Dimensions {
+	// When no result
 	if len(ui.results) == 0 {
 		return layout.Flex{Axis: layout.Vertical}.Layout(gtx,
 			layout.Flexed(1, func(gtx layout.Context) layout.Dimensions {
@@ -95,45 +112,74 @@ func (ui *DownloadUI) LayoutResults(gtx layout.Context, th *material.Theme, prgU
 		)
 	}
 
-	return layout.Inset{Top: 8, Bottom: 8}.Layout(gtx, func(gtx layout.Context) layout.Dimensions {
+	// Results
+	return layout.Inset{
+		Top:    8,
+		Bottom: 8,
+	}.Layout(gtx, func(gtx layout.Context) layout.Dimensions {
+		// Display all result in buttons
 		return ui.list.List.Layout(gtx, len(ui.results), func(gtx layout.Context, i int) layout.Dimensions {
 			btn := &ui.resultButtons[i]
 			isSelected := ui.selectedResult == ui.results[i]
 
 			return layout.Flex{Axis: layout.Horizontal, Alignment: layout.Middle}.Layout(gtx,
+				// The result button
 				layout.Flexed(0.7, func(gtx layout.Context) layout.Dimensions {
-					inset := layout.Inset{Top: 5, Bottom: 5, Left: 20, Right: 20}
-					return inset.Layout(gtx, func(gtx layout.Context) layout.Dimensions {
-						dispalyStr := ui.results[i].fileName + strings.Repeat(" ", 30-len(ui.results[i].fileName)) +
-							"| Size: " + strings.Repeat(" ", 8-len(ui.results[i].fileSize)) + ui.results[i].fileSize
+					// Padding
+					inset := layout.Inset{
+						Top:    5,
+						Bottom: 5,
+						Left:   20,
+						Right:  20,
+					}
 
-						button := material.Button(th, btn, dispalyStr)
+					// Apply the padding and layout the button
+					return inset.Layout(gtx, func(gtx layout.Context) layout.Dimensions {
+
+						display_str := fmt.Sprintf("%s | %s", ui.results[i].Name, ui.results[i].Hash)
+						button := material.Button(th, btn, display_str)
+
+						// Different style for selected items
 						if isSelected {
+							// Create a highlighted button
+							// button = material.Button(th, btn, ui.results[i].fileName)
 							button.Background = th.Palette.ContrastBg
 							button.Color = th.Palette.ContrastFg
 						} else {
+							// Regular button
+							// button = material.Button(th, btn, ui.results[i].fileName)
 							button.Background = color.NRGBA{R: 255, G: 255, B: 255, A: 255}
 							button.Color = color.NRGBA{R: 0, G: 0, B: 0, A: 255}
 						}
 
+						// Register click event
 						if btn.Clicked(gtx) {
 							ui.selectedResult = ui.results[i]
 						}
+
 						return button.Layout(gtx)
 					})
 				}),
+
+				// The download button (only shown for selected item)
 				layout.Rigid(func(gtx layout.Context) layout.Dimensions {
 					if isSelected {
-						inset := layout.Inset{Right: 20}
-						return inset.Layout(gtx, func(gtx layout.Context) layout.Dimensions {
-							downloadBtn := material.Button(th, &ui.downloadButton, "Download")
-							downloadBtn.Background = color.NRGBA{R: 39, G: 215, B: 45, A: 255}
+						// Padding
+						inset := layout.Inset{
+							Right: 20,
+						}
 
+						return inset.Layout(gtx, func(gtx layout.Context) layout.Dimensions {
+							// Download buttton property
+							btn := material.Button(th, &ui.downloadButton, "Download")
+							btn.Background = color.NRGBA{R: 39, G: 215, B: 45, A: 255}
+
+							// When download is clicked
 							if ui.downloadButton.Clicked(gtx) {
 								log.Println("Selected result:", ui.selectedResult)
 								ui.Download(prgUI)
 							}
-							return downloadBtn.Layout(gtx)
+							return btn.Layout(gtx)
 						})
 					}
 					return layout.Dimensions{}
@@ -143,106 +189,65 @@ func (ui *DownloadUI) LayoutResults(gtx layout.Context, th *material.Theme, prgU
 	})
 }
 
-// Simple popup message (unchanged from your snippet)
-func PopupMessage(message string) {
-	go func() {
-		popupWindow := new(app.Window)
-		popupWindow.Option(app.Title("P2P File Share"))
-		popupWindow.Option(app.Size(unit.Dp(400), unit.Dp(200)))
-
-		thPopup := material.NewTheme()
-		var popupOps op.Ops
-
-		for {
-			e := popupWindow.Event()
-			switch e := e.(type) {
-			case app.FrameEvent:
-				gtx := app.NewContext(&popupOps, e)
-				layout.Flex{Axis: layout.Vertical}.Layout(gtx,
-					layout.Flexed(1, func(gtx layout.Context) layout.Dimensions {
-						return layout.Flex{Axis: layout.Horizontal}.Layout(gtx,
-							layout.Flexed(1, func(gtx layout.Context) layout.Dimensions {
-								return layout.Center.Layout(gtx, func(gtx layout.Context) layout.Dimensions {
-									text := material.Body1(thPopup, message)
-									text.Color = color.NRGBA{R: 255, A: 255}
-									text.TextSize = unit.Sp(20)
-									return text.Layout(gtx)
-								})
-							}),
-						)
-					}),
-				)
-				e.Frame(gtx.Ops)
-			case app.DestroyEvent:
-				return
-			}
-		}
-	}()
-}
-
-// PerformSearch is your mock search that populates ui.results
 func (ui *DownloadUI) PerformSearch() {
 	query := strings.TrimSpace(ui.searchInput.Text())
-	if query == "" {
-		ui.results = nil
-		ui.resultButtons = nil
-		return
-	}
 
-	// Convert filename to CID-like hash
-	fileHashCID, err := cidFromString(query)
+	// Make GET request to the load balancer server
+	getReq := "/api/" + DBManagerVer + "/manifests?prefix=" + query
+	log.Println("Send GET " + getReq + " to " + LoadBalancerAdr)
+
+	// Send GET requet
+	resp, err := http.Get(LoadBalancerAdr + getReq)
 	if err != nil {
-		log.Println("Error generating CID for query:", err)
+		log.Println("Error when sending search query request", err)
+		return
+	}
+	defer resp.Body.Close()
+
+	// Check for successful response status
+	if resp.StatusCode != http.StatusOK {
+		log.Println("Error receiving non-OK response", resp.Status)
 		return
 	}
 
-	// Find peers storing the file hash
-	ctx := context.Background()
-	providersChan := ui.kadDHT.FindProvidersAsync(ctx, fileHashCID, 10)
-
-	var foundProviders []peer.AddrInfo
-	for p := range providersChan {
-		if p.ID == ui.node.ID() {
-			continue // Skip self
-		}
-		foundProviders = append(foundProviders, p)
-	}
-
-	// If no providers found, return empty results
-	if len(foundProviders) == 0 {
-		log.Println("No peers found with file:", query)
-		ui.results = nil
-		ui.resultButtons = nil
+	// Read the response body
+	respSer, err := io.ReadAll(resp.Body)
+	if err != nil {
+		log.Println("Error reading response body:", err)
 		return
 	}
 
-	// Otherwise, populate results based on found peers
-	ui.results = []SearchData{}
-	for range foundProviders {
-		ui.results = append(ui.results, SearchData{
-			fileHash: fileHashCID.String(),
-			fileName: query,
-			fileSize: "Unknown", // No size info in DHT, might need another lookup
-		})
+	// Decode the JSON response
+	var manifests []types.Manifest
+	if err := json.Unmarshal(respSer, &manifests); err != nil {
+		log.Println("Decode Error:", err)
+		return
 	}
 
+	// Change the GUI search result
+	ui.results = manifests
+
+	// Make buttons to select the result
 	ui.resultButtons = make([]widget.Clickable, len(ui.results))
-	log.Println("Search completed. Found peers with file:", query)
 }
 
-// Here's where we do the real DHT-based download
 func (ui *DownloadUI) Download(prgUI *ProgressUI) {
 	go func() {
-		fileName := ui.selectedResult.fileName
+		fileName := ui.selectedResult.Name
 		// Add file to the progress page
-		downloadFile := prgUI.AddDownload(fileName, ui.selectedResult.fileHash)
+		downloadFile := prgUI.AddDownload(fileName, ui.selectedResult.Hash)
+
+		// Not process to download since file is downloading
 		if downloadFile == nil {
+			PopupMessage(fileName + " is downloading!")
 			return
 		}
-		// Make HTTP request to your load balancer (if you still want that)
-		getReq := "/api/v1/records/" + fileName
-		log.Println("Send GET", getReq, "to", LoadBalancerAdr)
 
+		// Make GET request to the load balancer server
+		getReq := "/api/" + DBManagerVer + "/manifests/" + fileName
+		log.Println("Send GET " + getReq + " to " + LoadBalancerAdr)
+
+		// Send GET requet
 		resp, err := http.Get(LoadBalancerAdr + getReq)
 		if err != nil {
 			log.Println("Error:", err)
@@ -250,79 +255,107 @@ func (ui *DownloadUI) Download(prgUI *ProgressUI) {
 		}
 		defer resp.Body.Close()
 
+		// Decode the JSON response
 		var manifest types.Manifest
 		if err := json.NewDecoder(resp.Body).Decode(&manifest); err != nil {
 			log.Println("Decode Error:", err)
 			return
 		}
 
+		// Print received data
 		log.Println("Name:", manifest.Name)
 		log.Println("Hash:", manifest.Hash)
 
-		// Switch tab
+		// ------------------------------------------------------------
+		// !P2P Download
+
+		// Update download progress = data received / file size
+		downloadFile.Progress = 0
+
 		tabSelected = ProgressTab
-		// "Download" from the DHT
-		// 1) Convert manifest.Hash to a CID
-		c, err := cidFromString(manifest.Hash)
+
+		peerID, err := dhtLookup(ui, manifest.Hash)
 		if err != nil {
-			log.Println("Failed to create CID from hash:", err)
+			log.Println("Error finding provider:", err)
 			return
 		}
 
-		ctx := context.Background()
-		// 2) Find providers for that CID
-		providersChan := ui.kadDHT.FindProvidersAsync(ctx, c, 10)
-		var provider *peer.AddrInfo
-		for p := range providersChan {
-			if p.ID == ui.node.ID() {
-				// skip self
-				continue
-			}
-			provider = &p
-			break
-		}
-		if provider == nil {
-			log.Println("No providers found for hash:", manifest.Hash)
-			return
-		}
+		requestFile(ui.node, peerID, manifest.Name, ui.dirPath)
 
-		// 3) Connect to that provider
-		if err := ui.node.Connect(ctx, *provider); err != nil {
-			log.Println("Failed to connect:", err)
-			return
-		}
-		log.Println("Connected to provider:", provider.ID)
-
-		// 4) Open a stream and request the file
-		s, err := ui.node.NewStream(ctx, provider.ID, protocol)
-		if err != nil {
-			log.Println("NewStream error:", err)
-			return
-		}
-		defer s.Close()
-
-		fmt.Fprintf(s, manifest.Name+"\n") // request the file by name
-
-		data, err := ioutil.ReadAll(s)
-		if err != nil {
-			log.Println("Error reading stream data:", err)
-			return
-		}
-		if len(data) == 0 || strings.HasPrefix(string(data), "Error:") {
-			log.Println("Failed to get file:", string(data))
-			return
-		}
-
-		// 5) Write the file to disk
-		err = ioutil.WriteFile("received_"+fileName, data, 0644)
-		if err != nil {
-			log.Println("Error saving file:", err)
-			return
-		}
-
-		// Update progress bar to 100%
+		// Set the progress bar to 100% (hardcode for now)
 		downloadFile.Progress = 1
 
-		PopupMessage(fileName + " download finished!")
+		PopupMessage(fileName + " download finish")
 	}()
+}
+
+func requestFile(node host.Host, providerID peer.ID, fileName string, dirPath string) {
+	// Open a new stream to the provider
+	ctx := context.Background()
+
+	// Log which peer we're contacting
+	log.Println("Attempting to request file from provider:", providerID.String())
+
+	s, err := node.NewStream(ctx, providerID, protocol)
+	if err != nil {
+		log.Fatal(err)
+	}
+	defer s.Close()
+
+	// Send the file request
+	fmt.Printf("Requesting file: %s\n", fileName)
+	s.Write([]byte(fileName + "\n"))
+
+	// Read the response
+	data, err := io.ReadAll(s)
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	// Check if the response indicates an error
+	response := string(data)
+	if strings.HasPrefix(response, "Error:") || strings.HasPrefix(response, "File not found") {
+		fmt.Println("Failed to get file:", response)
+		return
+	}
+
+	// Construct the correct save path in the peer's directory
+	savePath := filepath.Join(dirPath, "received_"+fileName)
+
+	// Write the file data to correct directory
+	err = os.WriteFile(savePath, data, 0644)
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	fmt.Printf("Received and saved file as received_%s\n", fileName)
+}
+
+func dhtLookup(ui *DownloadUI, fileCID string) (peer.ID, error) {
+	ctx := context.Background()
+
+	// Decode the CID from the string
+	c, err := cid.Decode(fileCID)
+	if err != nil {
+		return "", fmt.Errorf("failed to convert CID: %v", err)
+	}
+
+	providerChan := ui.kadDHT.FindProvidersAsync(ctx, c, 10)
+
+	// Log all found providers
+	var foundProvider peer.ID
+	for p := range providerChan {
+		log.Println("Discovered provider:", p.ID.String())
+		if p.ID != ui.node.ID() {
+			foundProvider = p.ID
+			break
+		}
+	}
+
+	if foundProvider == "" {
+		return "", fmt.Errorf("no providers found for CID: %s", fileCID)
+	}
+
+	log.Println("Using provider:", foundProvider.String())
+	return foundProvider, nil
 }

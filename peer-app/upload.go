@@ -3,8 +3,6 @@ package main
 import (
 	"bytes"
 	"context"
-	"crypto/sha256"
-	"encoding/hex"
 	"encoding/json"
 	"image"
 	"image/color"
@@ -211,10 +209,10 @@ func (upload *UploadUI) NavigateUp() {
 	upload.LoadFiles()
 }
 
-// UploadFile performs the final "upload" step:
-// 1) Gathers file info (hash, size).
-// 2) (Still) POSTs the manifest to your load balancer (if you want).
-// 3) Provides the file to the Kademlia DHT so other peers can find it.
+// UploadFile performs the final upload step correctly:
+// 1) Generates CID from file data.
+// 2) Provides the CID to the Kademlia DHT, ensuring peer discoverability.
+// 3) If successful, posts the manifest (with CID) to the load balancer/DB.
 func (upload *UploadUI) UploadFile() {
 	if upload.selected == nil {
 		PopupMessage("No file is selected!")
@@ -228,39 +226,49 @@ func (upload *UploadUI) UploadFile() {
 	// 1) Get file size
 	fileSize, err := GetFileSize(filePath)
 	if err != nil {
-		log.Println("Error when getting file size:", err)
+		log.Println("Error getting file size:", err)
 		return
 	}
 	log.Println("File Size =", strconv.FormatInt(fileSize, 10), "bytes")
 
-	// 2) Get file hash
-	fileHash, err := GetFileHash(filePath)
+	// 2) Generate CID from file data
+	cid, err := cidFromFile(filePath)
 	if err != nil {
-		log.Println("Error when getting file hash:", err)
+		log.Println("Error generating CID from file:", err)
 		return
 	}
-	log.Println("File Hash =", fileHash)
+	log.Println("CID =", cid.String())
 
-	// 3) Build the manifest
+	// 3) Provide the file CID to the Kademlia DHT
+	ctx := context.Background()
+	if err := upload.kadDHT.Provide(ctx, cid, true); err != nil {
+		log.Println("Error providing CID to DHT:", err)
+		return
+	}
+	log.Println("Successfully provided CID to DHT:", cid.String())
+
+	// 4) Build the manifest with CID
 	manifest := types.Manifest{
 		Name: fileName,
-		Hash: fileHash,
+		Hash: cid.String(), // CID instead of raw file hash
 		// Optionally set Size: fileSize if your model supports it
 	}
 
-	// 4) Marshal to JSON and POST to your load balancer (if you still want that)
+	// 5) Marshal manifest to JSON
 	jsonData, err := json.Marshal(manifest)
 	if err != nil {
 		log.Println("Error encoding JSON:", err)
 		return
 	}
 
-	postReq := "/api/" + DBManagerVer + "/records"
-	log.Println("Send POST " + postReq + " to " + LoadBalancerAdr)
+	// 6) POST manifest JSON to load balancer
+	postReq := "/api/" + DBManagerVer + "/manifests"
+	log.Println("Sending POST", postReq, "to", LoadBalancerAdr)
 
 	req, err := http.NewRequest("POST", LoadBalancerAdr+postReq, bytes.NewBuffer(jsonData))
 	if err != nil {
 		log.Println("Error creating POST request:", err)
+		return
 	}
 	req.Header.Set("Content-Type", "application/json")
 
@@ -279,20 +287,6 @@ func (upload *UploadUI) UploadFile() {
 	log.Println("Resp Status:", resp.Status)
 	log.Println("Resp Body:", string(respSer))
 
-	// ---------------------------------------------------------
-	// 5) Provide the file to the Kademlia DHT
-	c, err := cidFromString(fileHash)
-	if err != nil {
-		log.Println("Error creating CID from fileHash:", err)
-		return
-	}
-	ctx := context.Background()
-	if err := upload.kadDHT.Provide(ctx, c, true); err != nil {
-		log.Println("Error providing file to DHT:", err)
-		return
-	}
-	log.Println("Provided to DHT: ", filePath, "with CID:", c.String())
-
 	PopupMessage("Uploaded & Provided: " + fileName)
 }
 
@@ -305,19 +299,20 @@ func GetFileSize(filePath string) (int64, error) {
 	return fileInfo.Size(), err
 }
 
-// Helper: get file SHA256
-func GetFileHash(filePath string) (string, error) {
-	file, err := os.Open(filePath)
-	if err != nil {
-		return "", err
-	}
-	defer file.Close()
-	h := sha256.New()
-	if _, err := io.Copy(h, file); err != nil {
-		return "", err
-	}
-	return hex.EncodeToString(h.Sum(nil)), nil
-}
+// // Helper: get file SHA256
+//
+//	func GetFileHash(filePath string) (string, error) {
+//		file, err := os.Open(filePath)
+//		if err != nil {
+//			return "", err
+//		}
+//		defer file.Close()
+//		h := sha256.New()
+//		if _, err := io.Copy(h, file); err != nil {
+//			return "", err
+//		}
+//		return hex.EncodeToString(h.Sum(nil)), nil
+//	}
 func announceFile(node host.Host, kadDHT *dht.IpfsDHT, filePath string) {
 	// Convert filename to hash (CID-like)
 	fileHashCID, err := cidFromString(filePath)
