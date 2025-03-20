@@ -124,6 +124,7 @@ func heartbeatHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	w.Header().Set("Content-Type", "application/json")
 	err := json.NewEncoder(w).Encode(&types.Heartbeat{
 		Index:       cfg.Index,
 		Uptime:      GetUptime(),
