@@ -280,7 +280,7 @@ func (ui *DownloadUI) Download(prgUI *ProgressUI) {
 			return
 		}
 
-		requestFile(ui.node, peerID, manifest.Name, ui.dirPath)
+		requestFile(ui.node, peerID, manifest.Name, ui.dirPath, manifest.Hash)
 
 		// Set the progress bar to 100% (hardcode for now)
 		downloadFile.Progress = 1
@@ -289,7 +289,7 @@ func (ui *DownloadUI) Download(prgUI *ProgressUI) {
 	}()
 }
 
-func requestFile(node host.Host, providerID peer.ID, fileName string, dirPath string) {
+func requestFile(node host.Host, providerID peer.ID, fileName string, dirPath string, expectedCID string) {
 	// Open a new stream to the provider
 	ctx := context.Background()
 
@@ -320,7 +320,7 @@ func requestFile(node host.Host, providerID peer.ID, fileName string, dirPath st
 	}
 
 	// Construct the correct save path in the peer's directory
-	savePath := filepath.Join(dirPath, "received_"+fileName)
+	savePath := filepath.Join(dirPath, fileName)
 
 	// Write the file data to correct directory
 	err = os.WriteFile(savePath, data, 0644)
@@ -329,6 +329,20 @@ func requestFile(node host.Host, providerID peer.ID, fileName string, dirPath st
 	}
 
 	fmt.Printf("Received and saved file as received_%s\n", fileName)
+
+	// Integrity Check: Compare computed CID with expected CID
+	computedCID, err := cidFromFile(savePath)
+	if err != nil {
+		log.Println("Error computing CID for downloaded file:", err)
+		return
+	}
+	if computedCID.String() == expectedCID {
+		fmt.Println("✅ Integrity check passed: File matches expected CID.")
+	} else {
+		fmt.Println("❌ Integrity check failed: File does NOT match expected CID.")
+		log.Printf("Expected CID: %s\n", expectedCID)
+		log.Printf("Computed CID: %s\n", computedCID.String())
+	}
 }
 
 func dhtLookup(ui *DownloadUI, fileCID string) (peer.ID, error) {
