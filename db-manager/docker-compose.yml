@@ -1,0 +1,49 @@
+version: "3.9"
+
+services:
+  db-manager:
+    build:
+      context: ..
+      dockerfile: ./db-manager/Dockerfile
+    ports:
+      - "8082:8082" # Map the container port to the host (adjust as needed)
+    environment:
+      - DB_HOST=postgres
+      - DB_PORT=5432
+      - DB_USER=postgres
+      - DB_NAME=registry2
+      - DB_PASSWORD=bradleyli859
+      - CONFIG_PATH=/app/config.json # Add this if db-manager expects the config path via an environment variable
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks:
+      - app-network
+
+  postgres:
+    image: postgres:15
+    environment:
+      - POSTGRES_USER=postgres
+      - POSTGRES_PASSWORD=bradleyli859
+      - POSTGRES_DB=registry2
+    volumes:
+      - db-data:/var/lib/postgresql/data
+    ports:
+      - "5432:5432" # Expose PostgreSQL port (optional, for external access)
+    networks:
+      - app-network
+    healthcheck:
+      test: ["CMD", "pg_isready", "-U", "postgres"]
+      interval: 10s
+      retries: 5
+      timeout: 5s
+
+networks:
+  app-network:
+    # driver: bridge
+    # ipam:
+    #   config:
+    #     - subnet: 192.168.65.0/24
+
+volumes:
+  db-data:
