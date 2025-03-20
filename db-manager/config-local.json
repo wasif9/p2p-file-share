@@ -1,6 +1,6 @@
 {
-  "index": 2,
-  "port": "8082",
+  "index": 1,
+  "port": "8081",
   "version": "v1",
   "pg-host": "localhost",
   "pg-user": "postgres",
