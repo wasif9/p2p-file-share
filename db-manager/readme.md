@@ -4,6 +4,17 @@ go run ./... config.json
 ```
 From inside `db-manager`
 
+# Run with Docker
+Assuming at root directory P2P-FILE-SHARE and navigate to db-manager folder first by running 
+```bash
+cd db-manager
+```
+then run
+```bash
+docker-compose down -v
+docker-compose up --build -d
+```
+
 ## Test with (in a separate terminal)
 ```bash
 curl localhost:8081/api/v1/heartbeat
