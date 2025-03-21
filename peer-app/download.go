@@ -304,7 +304,9 @@ func requestFile(node host.Host, providerID peer.ID, fileName string, dirPath st
 
 	// Send the file request
 	fmt.Printf("Requesting file: %s\n", fileName)
-	s.Write([]byte(fileName + "\n"))
+	if _, err := s.Write([]byte(fileName + "\n")); err != nil {
+		log.Fatal(err)
+	}
 
 	// Read the response
 	data, err := io.ReadAll(s)

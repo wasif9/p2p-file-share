@@ -9,6 +9,7 @@ import (
 	types "github.com/wasif9/p2p-file-share/pkg/models"
 	"gorm.io/driver/postgres"
 	"gorm.io/gorm"
+	"gorm.io/gorm/logger"
 )
 
 var err error
@@ -17,8 +18,14 @@ func main() {
 	log.SetFlags(log.LstdFlags | log.Lshortfile)
 
 	// Connection to the database
-	dsn := fmt.Sprintf("host=localhost user=postgres password=%s dbname=registry%d port=5432 sslmode=disable TimeZone=UTC", cfg.Pg_password, cfg.Index)
-	db, err := gorm.Open(postgres.Open(dsn), &gorm.Config{})
+	dsn := fmt.Sprintf(
+		"host=%s user=%s password=%s dbname=registry%d port=%s sslmode=disable TimeZone=UTC",
+		cfg.Pg_host, cfg.Pg_user, cfg.Pg_password, cfg.Index, cfg.Pg_port,
+	)
+
+	db, err := gorm.Open(postgres.Open(dsn), &gorm.Config{
+		Logger: logger.Default.LogMode(logger.Info),
+	})
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -28,13 +35,13 @@ func main() {
 		log.Fatal(err)
 	}
 
-	http.HandleFunc("/api/"+cfg.Version+"/records/", createRecordHandler(db))
-	http.HandleFunc("/api/"+cfg.Version+"/records", createRecordsHandler(db))
+	http.HandleFunc("/api/"+cfg.Version+"/manifests/", createManifestHandler(db))
+	http.HandleFunc("/api/"+cfg.Version+"/manifests", createManifestsHandler(db))
 	http.HandleFunc("/api/"+cfg.Version+"/kill", killHandler)
 	http.HandleFunc("/api/"+cfg.Version+"/heartbeat", heartbeatHandler)
 
 	log.Printf("Server starting on port %s...\n", cfg.Port)
-	err = http.ListenAndServe(net.JoinHostPort("localhost", cfg.Port), nil)
+	err = http.ListenAndServe(net.JoinHostPort("0.0.0.0", cfg.Port), nil)
 	if err != nil {
 		log.Fatal(err)
 	}
