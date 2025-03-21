@@ -288,7 +288,9 @@ func handleFileRequest(s network.Stream) {
 	// Check if file exists
 	if _, err := os.Stat(filePath); os.IsNotExist(err) {
 		log.Println("File not found on provider node:", filePath)
-		s.Write([]byte("Error: open " + filePath + ": no such file or directory\n"))
+		if _, err := s.Write([]byte("Error: open " + filePath + ": no such file or directory\n")); err != nil {
+			log.Println("Error writing to stream:", err)
+		}
 		return
 	}
 
@@ -298,7 +300,10 @@ func handleFileRequest(s network.Stream) {
 		log.Println("Error reading file:", err)
 		return
 	}
-	s.Write(data)
+	if _, err := s.Write(data); err != nil {
+		log.Println("Error writing to stream:", err)
+		return
+	}
 	log.Println("Sent file:", requestedFile)
 }
 

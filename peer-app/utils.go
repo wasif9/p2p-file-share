@@ -2,7 +2,6 @@ package main
 
 import (
 	"crypto/sha256"
-	"encoding/hex"
 	"io"
 	"os"
 
@@ -38,16 +37,5 @@ func cidFromFile(filepath string) (cid.Cid, error) {
 		return cid.Cid{}, err
 	}
 
-	return cid.NewCidV1(cid.Raw, mhBytes), nil
-}
-func cidFromHash(fileHash string) (cid.Cid, error) {
-	hashBytes, err := hex.DecodeString(fileHash)
-	if err != nil {
-		return cid.Cid{}, err
-	}
-	mhBytes, err := mh.Encode(hashBytes, mh.SHA2_256)
-	if err != nil {
-		return cid.Cid{}, err
-	}
 	return cid.NewCidV1(cid.Raw, mhBytes), nil
 }

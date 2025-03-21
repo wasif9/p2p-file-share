@@ -313,21 +313,21 @@ func GetFileSize(filePath string) (int64, error) {
 //		}
 //		return hex.EncodeToString(h.Sum(nil)), nil
 //	}
-func announceFile(node host.Host, kadDHT *dht.IpfsDHT, filePath string) {
-	// Convert filename to hash (CID-like)
-	fileHashCID, err := cidFromString(filePath)
-	if err != nil {
-		log.Println("Error generating CID for file:", err)
-		return
-	}
+// func announceFile(kadDHT *dht.IpfsDHT, filePath string) {
+// 	// Convert filename to hash (CID-like)
+// 	fileHashCID, err := cidFromString(filePath)
+// 	if err != nil {
+// 		log.Println("Error generating CID for file:", err)
+// 		return
+// 	}
 
-	// Store the file hash in the DHT
-	ctx := context.Background()
-	err = kadDHT.Provide(ctx, fileHashCID, true)
-	if err != nil {
-		log.Println("Error announcing file to DHT:", err)
-		return
-	}
+// 	// Store the file hash in the DHT
+// 	ctx := context.Background()
+// 	err = kadDHT.Provide(ctx, fileHashCID, true)
+// 	if err != nil {
+// 		log.Println("Error announcing file to DHT:", err)
+// 		return
+// 	}
 
-	log.Println("File announced in DHT:", filePath, "->", fileHashCID.String())
-}
+// 	log.Println("File announced in DHT:", filePath, "->", fileHashCID.String())
+// }
