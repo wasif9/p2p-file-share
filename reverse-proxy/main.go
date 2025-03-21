@@ -9,8 +9,8 @@ import (
 
 func main() {
 	// Define addresses
-	sourceAddr := "localhost:8080"
-	leaderAddr := "http://localhost:8081"
+	sourceAddr := "0.0.0.0:8080"
+	leaderAddr := "http://localhost:8081" // TODO: !hardcoded
 
 	// Create a handler function
 	http.HandleFunc("/api/", func(w http.ResponseWriter, r *http.Request) {
@@ -54,22 +54,25 @@ func main() {
 	})
 
 	http.HandleFunc("/leader", func(w http.ResponseWriter, r *http.Request) {
-		if r.Method != http.MethodPost {
-			http.Error(w, "Only POST is allowed", http.StatusMethodNotAllowed)
+		switch r.Method {
+		case http.MethodGet:
+			fmt.Fprint(w, leaderAddr)
+		case http.MethodPost:
+			newAddress := r.URL.Query().Get("address")
+			if newAddress == "" {
+				http.Error(w, "You need to specify the 'address' query parameter", http.StatusBadRequest)
+				return
+			}
+
+			leaderAddr = newAddress
+		default:
+			http.Error(w, "", http.StatusMethodNotAllowed)
 			return
 		}
 
-		newAddress := r.URL.Query().Get("address")
-		if newAddress == "" {
-			http.Error(w, "You need to specify the 'address' query parameter", http.StatusBadRequest)
-			return
-		}
-
-		leaderAddr = newAddress
 	})
 	// Start the server
 	fmt.Printf("Starting proxy server on %s\n", sourceAddr)
 	fmt.Printf("- Forwarding /api/* requests to %s\n", leaderAddr)
-	fmt.Printf("- Returning 'Hello World' for all other requests\n")
 	log.Fatal(http.ListenAndServe(sourceAddr, nil))
 }
