@@ -14,16 +14,15 @@ import (
 
 var leaderIndex = 1
 
-func isLeader() bool {
-	return leaderIndex == cfg.Index
-}
-
 func monitorLeader() {
 	for true {
 		time.Sleep(time.Second * 4)
 		// every 4 seconds, make sure the leader is alive
 		log.Printf("\tchecking in on node %d\n", leaderIndex)
 
+		// !HACK:
+		// this assumes that node x runs on localhost 808x.
+		// In reality, we'll need to let each node know the address (host:post) of each of it's peers, or maybe just it's successor
 		leaderAddr := "http://localhost:808" + strconv.Itoa(leaderIndex)
 
 		resp, err := http.Get(leaderAddr + "/api/v1/heartbeat")
@@ -49,6 +48,8 @@ func monitorLeader() {
 
 func election() {
 	fmt.Println("we'll use the power of democracy")
-	leaderIndex = cfg.Index
+	// TODO: election process, update leaderIndex local variable
+	// ....
+	// continue to monitor the leader's heartbeat
 	go monitorLeader()
 }
