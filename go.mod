@@ -2,7 +2,32 @@ module github.com/wasif9/p2p-file-share
 
 go 1.24.1
 
-require gorm.io/gorm v1.25.12
+require (
+	github.com/libp2p/go-libp2p-kad-dht v0.30.2
+	gorm.io/gorm v1.25.12
+)
+
+require (
+	github.com/go-logr/logr v1.4.2 // indirect
+	github.com/go-logr/stdr v1.2.2 // indirect
+	github.com/hashicorp/golang-lru v1.0.2 // indirect
+	github.com/ipfs/boxo v0.28.0 // indirect
+	github.com/ipfs/go-datastore v0.8.2 // indirect
+	github.com/ipfs/go-log v1.0.5 // indirect
+	github.com/ipld/go-ipld-prime v0.21.0 // indirect
+	github.com/libp2p/go-cidranger v1.1.0 // indirect
+	github.com/libp2p/go-libp2p-kbucket v0.6.5 // indirect
+	github.com/libp2p/go-libp2p-record v0.3.1 // indirect
+	github.com/libp2p/go-libp2p-routing-helpers v0.7.5 // indirect
+	github.com/opentracing/opentracing-go v1.2.0 // indirect
+	github.com/polydawn/refmt v0.89.0 // indirect
+	github.com/whyrusleeping/go-keyspace v0.0.0-20160322163242-5b898ac5add1 // indirect
+	go.opentelemetry.io/auto/sdk v1.1.0 // indirect
+	go.opentelemetry.io/otel v1.34.0 // indirect
+	go.opentelemetry.io/otel/metric v1.34.0 // indirect
+	go.opentelemetry.io/otel/trace v1.34.0 // indirect
+	gonum.org/v1/gonum v0.15.1 // indirect
+)
 
 require (
 	gioui.org/shader v1.0.8 // indirect
@@ -26,7 +51,7 @@ require (
 	github.com/google/uuid v1.6.0 // indirect
 	github.com/gorilla/websocket v1.5.3 // indirect
 	github.com/huin/goupnp v1.3.0 // indirect
-	github.com/ipfs/go-cid v0.5.0 // indirect
+	github.com/ipfs/go-cid v0.5.0
 	github.com/ipfs/go-log/v2 v2.5.1 // indirect
 	github.com/jackc/pgpassfile v1.0.0 // indirect
 	github.com/jackc/pgservicefile v0.0.0-20221227161230-091c0ba34f0a // indirect
@@ -59,7 +84,7 @@ require (
 	github.com/multiformats/go-multiaddr-fmt v0.1.0 // indirect
 	github.com/multiformats/go-multibase v0.2.0 // indirect
 	github.com/multiformats/go-multicodec v0.9.0 // indirect
-	github.com/multiformats/go-multihash v0.2.3 // indirect
+	github.com/multiformats/go-multihash v0.2.3
 	github.com/multiformats/go-multistream v0.6.0 // indirect
 	github.com/multiformats/go-varint v0.0.7 // indirect
 	github.com/munnerz/goautoneg v0.0.0-20191010083416-a7dc8b61c822 // indirect
