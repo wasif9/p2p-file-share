@@ -1,0 +1,9 @@
+{
+  "index": 2,
+  "port": "8082",
+  "version": "v1",
+  "pg-host": "localhost",
+  "pg-user": "postgres",
+  "pg-password": "password",
+  "pg-port": "5432"
+}

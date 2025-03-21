@@ -17,6 +17,8 @@ var err error
 func main() {
 	log.SetFlags(log.LstdFlags | log.Lshortfile)
 
+	go monitorLeader()
+
 	// Connection to the database
 	dsn := fmt.Sprintf(
 		"host=%s user=%s password=%s dbname=registry%d port=%s sslmode=disable TimeZone=UTC",
