@@ -1,6 +1,7 @@
 package main
 
 import (
+	"bytes"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -12,7 +13,7 @@ import (
 	types "github.com/wasif9/p2p-file-share/pkg/models"
 )
 
-var leaderIndex = 0
+var leaderIndex = 1
 
 func monitorLeader() {
 
@@ -102,5 +103,41 @@ func election() {
 }
 
 func leaderElected() {
-	fmt.Println("send leader elected message to all nodes")
+
+	// create message body
+	jsonData, err := json.Marshal(leaderIndex)
+	if err != nil {
+		log.Println("Error encoding JSON:", err)
+		return
+	}
+
+	// Send messages to other nodes
+	for i := 0; i < len(nodeArr); i++ {
+
+		postReq := "http://" + nodeArr[i].IP + ":" + nodeArr[i].Port + "/api/v1/leader"
+		req, err := http.NewRequest("POST", postReq, bytes.NewBuffer(jsonData))
+		if err != nil {
+			log.Println("Error creating POST request:", err)
+			return
+		}
+		req.Header.Set("Content-Type", "application/json")
+
+		resp, err := http.DefaultClient.Do(req)
+		if err != nil {
+			log.Println("Error sending POST request:", err)
+			return
+		}
+		defer resp.Body.Close()
+
+		respSer, err := io.ReadAll(resp.Body)
+		if err != nil {
+			log.Println("Error reading response:", err)
+			return
+		}
+
+		log.Println("Resp Status:", resp.Status)
+		log.Println("Resp Body:", string(respSer))
+	}
+
+	fmt.Println("sent leader elected message to all nodes")
 }
