@@ -13,9 +13,13 @@ import (
 )
 
 var err error
+var node types.Node
+var nodeArr = [10]types.Node{}
 
 func main() {
 	log.SetFlags(log.LstdFlags | log.Lshortfile)
+	node.IP, node.Port, node.Index, node.Status = "localhost", cfg.Port, cfg.Index, "Follower"
+	nodeArr[node.Index] = node
 
 	go monitorLeader()
 
@@ -41,6 +45,8 @@ func main() {
 	http.HandleFunc("/api/"+cfg.Version+"/manifests", createManifestsHandler(db))
 	http.HandleFunc("/api/"+cfg.Version+"/kill", killHandler)
 	http.HandleFunc("/api/"+cfg.Version+"/heartbeat", heartbeatHandler)
+	http.HandleFunc("/api/"+cfg.Version+"/election/", electionHandler)
+	http.HandleFunc("/api/"+cfg.Version+"/election/", leaderHandler)
 
 	log.Printf("Server starting on port %s...\n", cfg.Port)
 	err = http.ListenAndServe(net.JoinHostPort("0.0.0.0", cfg.Port), nil)

@@ -7,6 +7,7 @@ import (
 	"math/rand"
 	"net/http"
 	"os"
+	"strconv"
 	"strings"
 	"time"
 
@@ -133,4 +134,36 @@ func heartbeatHandler(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 	}
+}
+
+// Handles http requests to the route '/election/{Index}'
+// Only defined for POST
+func electionHandler(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodGet {
+		http.Error(w, "Only GET is allowed", http.StatusMethodNotAllowed)
+		return
+	}
+	w.Header().Set("Content-Type", "application/json")
+	index, _ := strconv.Atoi(strings.TrimPrefix(r.URL.Path, "/api/"+cfg.Version+"/election/"))
+
+	if index > node.Index {
+		node.Status = "follower"
+	} else {
+		node.Status = "candidate"
+	}
+
+	err := json.NewEncoder(w).Encode(&types.Node{
+		IP:     node.IP,
+		Port:   node.Port,
+		Index:  node.Index,
+		Status: node.Status,
+	})
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+	}
+
+}
+
+func leaderHandler(w http.ResponseWriter, r *http.Request) {
+
 }

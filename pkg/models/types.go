@@ -13,3 +13,10 @@ type Heartbeat struct {
 	Uptime      time.Duration `json:"uptime"`
 	Utilization int           `json:"utilization"`
 }
+
+type Node struct {
+	IP     string `json:"server-ip"`
+	Port   string `json:"port"`
+	Index  int    `json:"node-index"`
+	Status string `json:"node-status"`
+}
