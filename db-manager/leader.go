@@ -56,7 +56,6 @@ func election() {
 	// TODO: when servers startup they need to send their IP/Port
 
 	// Send Election message to other servers
-	fmt.Printf("Before For loop: %s\n", node.Status)
 	for i := 0; i < len(nodeArr); i++ {
 		fmt.Println(nodeArr[i].Index)
 		resp, err := http.Get("http://" + nodeArr[i].IP + ":" + nodeArr[i].Port + "/api/v1/election/" + strconv.Itoa(node.Index))
@@ -80,17 +79,17 @@ func election() {
 			node.Status = "follower"
 		}
 		nodeArr[i].Status = node_peer.Status
-		//nodeArr[i].IP, nodeArr[i].Port, nodeArr[i].Index, nodeArr[i].Status = node_peer.IP, node_peer.Port, node_peer.Index, node_peer.Status
+
 	}
 
 	// Handle responses from peer nodes
 	for i := 0; i < len(nodeArr); i++ {
-		fmt.Printf("i: %d, status: %s\n", i, nodeArr[i].Status)
+		// If there's another candidate present and it's not this node then wait
 		if nodeArr[i].Status == "candidate" && i != node.Index {
 			node.Status = "waiting"
 		}
 	}
-	fmt.Println(node.Status)
+
 	// If node status is candidate, then node elected leader
 	if node.Status == "candidate" {
 		node.Status = "leader"
@@ -102,7 +101,6 @@ func election() {
 		time.Sleep(100 * time.Millisecond)
 	}
 
-	// ....
 	// continue to monitor the leader's heartbeat
 	go monitorLeader()
 }

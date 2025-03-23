@@ -145,8 +145,7 @@ func electionHandler(w http.ResponseWriter, r *http.Request) {
 	}
 	w.Header().Set("Content-Type", "application/json")
 	index, _ := strconv.Atoi(strings.TrimPrefix(r.URL.Path, "/api/"+cfg.Version+"/election/"))
-	fmt.Printf("The node index: %d\telection index: %d\n", node.Index, index)
-	//isElection = true
+
 	if index > node.Index {
 		node.Status = "follower"
 	} else {
@@ -185,7 +184,7 @@ func leaderHandler() func(w http.ResponseWriter, r *http.Request) {
 
 		// udpate leader index and change node status
 		leaderIndex = newLeaderIndex
-		node.Status = "following"
+		node.Status = "follower"
 
 		w.WriteHeader(http.StatusOK)
 		fmt.Fprintln(w, "Success!")
