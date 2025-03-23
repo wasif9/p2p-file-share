@@ -1,7 +1,8 @@
 FROM golang:1.24 AS builder
 
 WORKDIR /app
-COPY . .
+COPY bootstrap/main.go main.go
+COPY go.mod go.sum ./
 
 ENV CGO_ENABLED=0 GOOS=linux GOARCH=amd64
 
