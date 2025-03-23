@@ -3,6 +3,7 @@ module github.com/wasif9/p2p-file-share
 go 1.24.1
 
 require (
+	github.com/joho/godotenv v1.5.1
 	github.com/libp2p/go-libp2p-kad-dht v0.30.2
 	gorm.io/gorm v1.25.12
 )
@@ -15,7 +16,6 @@ require (
 	github.com/ipfs/go-datastore v0.8.2 // indirect
 	github.com/ipfs/go-log v1.0.5 // indirect
 	github.com/ipld/go-ipld-prime v0.21.0 // indirect
-	github.com/joho/godotenv v1.5.1 // indirect
 	github.com/libp2p/go-cidranger v1.1.0 // indirect
 	github.com/libp2p/go-libp2p-kbucket v0.6.5 // indirect
 	github.com/libp2p/go-libp2p-record v0.3.1 // indirect
