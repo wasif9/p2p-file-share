@@ -66,10 +66,13 @@ func election() {
 				nodeArr[i].Status = "No Response"
 				continue
 			}
+			defer resp.Body.Close()
+
 			body, err := io.ReadAll(resp.Body)
 			if err != nil {
 				log.Fatal(err)
 			}
+
 			node_peer := new(types.Node)
 
 			err = json.Unmarshal(body, &node_peer)
