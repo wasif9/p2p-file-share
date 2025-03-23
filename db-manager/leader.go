@@ -13,20 +13,18 @@ import (
 	types "github.com/wasif9/p2p-file-share/pkg/models"
 )
 
-var leaderIndex = 1
-
 func monitorLeader() {
 
 	for true {
 		time.Sleep(time.Second * 4)
 		// every 4 seconds, make sure the leader is alive
 		log.Printf("\tchecking in on node %d\n", leaderIndex)
-		fmt.Println(node.Port)
 
 		// !HACK:
 		// this assumes that node x runs on localhost 808x.
 		// In reality, we'll need to let each node know the address (host:post) of each of it's peers, or maybe just it's successor
-		leaderAddr := "http://localhost:808" + strconv.Itoa(leaderIndex)
+
+		leaderAddr := "http://" + nodeArr[leaderIndex].IP + ":" + nodeArr[leaderIndex].Port
 
 		resp, err := http.Get(leaderAddr + "/api/v1/heartbeat")
 		if err != nil {
@@ -47,7 +45,9 @@ func monitorLeader() {
 		}
 
 		log.Printf("leader says he is %d\n", heartbeat.Index)
+
 	}
+
 }
 
 func election() {
@@ -59,9 +59,10 @@ func election() {
 	fmt.Printf("Before For loop: %s\n", node.Status)
 	for i := 0; i < len(nodeArr); i++ {
 		fmt.Println(nodeArr[i].Index)
-		resp, err := http.Get("http://" + nodeArr[i].IP + ":" + nodeArr[i].Port + "/api/v1/election/" + strconv.Itoa(nodeArr[i].Index))
+		resp, err := http.Get("http://" + nodeArr[i].IP + ":" + nodeArr[i].Port + "/api/v1/election/" + strconv.Itoa(node.Index))
 		if err != nil {
 			log.Println("\tNo Response", err)
+			nodeArr[i].Status = "No Response"
 			continue
 		}
 		body, err := io.ReadAll(resp.Body)
@@ -75,12 +76,16 @@ func election() {
 			log.Fatal(err)
 		}
 		log.Printf("node responded with %s\n", node_peer.Status)
-		nodeArr[i] = *node_peer
+		if node_peer.Status == "candidate" && node.Index != node_peer.Index {
+			node.Status = "follower"
+		}
+		nodeArr[i].Status = node_peer.Status
 		//nodeArr[i].IP, nodeArr[i].Port, nodeArr[i].Index, nodeArr[i].Status = node_peer.IP, node_peer.Port, node_peer.Index, node_peer.Status
 	}
 
 	// Handle responses from peer nodes
 	for i := 0; i < len(nodeArr); i++ {
+		fmt.Printf("i: %d, status: %s\n", i, nodeArr[i].Status)
 		if nodeArr[i].Status == "candidate" && i != node.Index {
 			node.Status = "waiting"
 		}
@@ -118,21 +123,21 @@ func leaderElected() {
 		req, err := http.NewRequest("POST", postReq, bytes.NewBuffer(jsonData))
 		if err != nil {
 			log.Println("Error creating POST request:", err)
-			return
+			continue
 		}
 		req.Header.Set("Content-Type", "application/json")
 
 		resp, err := http.DefaultClient.Do(req)
 		if err != nil {
 			log.Println("Error sending POST request:", err)
-			return
+			continue
 		}
 		defer resp.Body.Close()
 
 		respSer, err := io.ReadAll(resp.Body)
 		if err != nil {
 			log.Println("Error reading response:", err)
-			return
+			continue
 		}
 
 		log.Println("Resp Status:", resp.Status)
