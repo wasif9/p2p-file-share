@@ -13,9 +13,24 @@ import (
 )
 
 var err error
+var node types.Node
+var nodeArr = [10]types.Node{}
+var leaderIndex int
 
 func main() {
 	log.SetFlags(log.LstdFlags | log.Lshortfile)
+	// Configure node array
+	// TODO: Move this over to the proxy
+	node.IP, node.Port, node.Index, node.Status = "localhost", "8083", 0, "follower"
+	nodeArr[0] = node
+	node.IP, node.Port, node.Index, node.Status = "localhost", "8082", 2, "follower"
+	nodeArr[2] = node
+	node.IP, node.Port, node.Index, node.Status = "localhost", "8081", 1, "follower"
+	nodeArr[1] = node
+
+	node.IP, node.Port, node.Index, node.Status = "localhost", cfg.Port, cfg.Index, "follower"
+	// Call election to determine if there needs to be a new leader.
+	election()
 
 	go monitorLeader()
 
@@ -41,6 +56,8 @@ func main() {
 	http.HandleFunc("/api/"+cfg.Version+"/manifests", createManifestsHandler(db))
 	http.HandleFunc("/api/"+cfg.Version+"/kill", killHandler)
 	http.HandleFunc("/api/"+cfg.Version+"/heartbeat", heartbeatHandler)
+	http.HandleFunc("/api/"+cfg.Version+"/election/", electionHandler)
+	http.HandleFunc("/api/"+cfg.Version+"/leader", leaderHandler())
 
 	log.Printf("Server starting on port %s...\n", cfg.Port)
 	err = http.ListenAndServe(net.JoinHostPort("0.0.0.0", cfg.Port), nil)
