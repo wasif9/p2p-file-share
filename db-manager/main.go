@@ -15,7 +15,7 @@ import (
 var err error
 var node types.Node
 var nodeArr = [10]types.Node{}
-var leaderIndex = 1
+var leaderIndex int
 
 func main() {
 	log.SetFlags(log.LstdFlags | log.Lshortfile)
@@ -25,15 +25,12 @@ func main() {
 	nodeArr[0] = node
 	node.IP, node.Port, node.Index, node.Status = "localhost", "8082", 2, "follower"
 	nodeArr[2] = node
-	node.IP, node.Port, node.Index, node.Status = "localhost", "8081", 1, "leader"
+	node.IP, node.Port, node.Index, node.Status = "localhost", "8081", 1, "follower"
 	nodeArr[1] = node
 
-	node.IP, node.Port, node.Index = "localhost", cfg.Port, cfg.Index
-	if cfg.Index == 1 {
-		node.Status = "leader"
-	} else {
-		node.Status = "follower"
-	}
+	node.IP, node.Port, node.Index, node.Status = "localhost", cfg.Port, cfg.Index, "follower"
+	// Call election to determine if there needs to be a new leader.
+	election()
 
 	go monitorLeader()
 

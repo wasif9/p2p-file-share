@@ -29,7 +29,7 @@ func monitorLeader() {
 		resp, err := http.Get(leaderAddr + "/api/v1/heartbeat")
 		if err != nil {
 			log.Println("\tleader DOWN!!!‼️‼️‼️‼️", err)
-			node.Status = "candidate"
+
 			election()
 			return
 		}
@@ -52,33 +52,37 @@ func monitorLeader() {
 
 func election() {
 	fmt.Println("we'll use the power of democracy")
+	node.Status = "candidate"
 	// TODO: election process, update leaderIndex local variable
 	// TODO: when servers startup they need to send their IP/Port
 
 	// Send Election message to other servers
 	for i := 0; i < len(nodeArr); i++ {
-		fmt.Println(nodeArr[i].Index)
-		resp, err := http.Get("http://" + nodeArr[i].IP + ":" + nodeArr[i].Port + "/api/v1/election/" + strconv.Itoa(node.Index))
-		if err != nil {
-			log.Println("\tNo Response", err)
-			nodeArr[i].Status = "No Response"
-			continue
-		}
-		body, err := io.ReadAll(resp.Body)
-		if err != nil {
-			log.Fatal(err)
-		}
-		node_peer := new(types.Node)
 
-		err = json.Unmarshal(body, &node_peer)
-		if err != nil {
-			log.Fatal(err)
+		if node.Index > nodeArr[i].Index {
+			resp, err := http.Get("http://" + nodeArr[i].IP + ":" + nodeArr[i].Port + "/api/v1/election/" + strconv.Itoa(node.Index))
+			if err != nil {
+				log.Println("\tNo Response", err)
+				nodeArr[i].Status = "No Response"
+				continue
+			}
+			body, err := io.ReadAll(resp.Body)
+			if err != nil {
+				log.Fatal(err)
+			}
+			node_peer := new(types.Node)
+
+			err = json.Unmarshal(body, &node_peer)
+			if err != nil {
+				log.Fatal(err)
+			}
+			log.Printf("node responded with %s\n", node_peer.Status)
+			if node_peer.Status == "candidate" && node.Index != node_peer.Index {
+				node.Status = "follower"
+			}
+			nodeArr[i].Status = node_peer.Status
+
 		}
-		log.Printf("node responded with %s\n", node_peer.Status)
-		if node_peer.Status == "candidate" && node.Index != node_peer.Index {
-			node.Status = "follower"
-		}
-		nodeArr[i].Status = node_peer.Status
 
 	}
 
@@ -116,7 +120,9 @@ func leaderElected() {
 
 	// Send messages to other nodes
 	for i := 0; i < len(nodeArr); i++ {
-
+		if nodeArr[i].Index == node.Index {
+			continue
+		}
 		postReq := "http://" + nodeArr[i].IP + ":" + nodeArr[i].Port + "/api/v1/leader"
 		req, err := http.NewRequest("POST", postReq, bytes.NewBuffer(jsonData))
 		if err != nil {
