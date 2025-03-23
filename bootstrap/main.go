@@ -5,15 +5,35 @@ import (
 	"fmt"
 	"log"
 
+	"encoding/base64"
+
 	libp2p "github.com/libp2p/go-libp2p"
 	dht "github.com/libp2p/go-libp2p-kad-dht"
+	"github.com/libp2p/go-libp2p/core/crypto"
 )
+
+const base64PrivKey = "CAESQPaC74sCL/HBWXTMeBYHpDqcGTVmdPbiMWIKKxCBzvOdRch8kA7u/g9naxyY6AVnQp+hZnW2ej9lXKQx53h8lbg="
+
+func loadStaticIdentity() crypto.PrivKey {
+	privBytes, err := base64.StdEncoding.DecodeString(base64PrivKey)
+	if err != nil {
+		log.Fatal("Failed to decode private key:", err)
+	}
+	priv, err := crypto.UnmarshalPrivateKey(privBytes)
+	if err != nil {
+		log.Fatal("Failed to unmarshal private key:", err)
+	}
+	return priv
+}
 
 func main() {
 	ctx := context.Background()
 
 	// Create a Libp2p Host that listens on all available interfaces (server mode)
-	node, err := libp2p.New()
+	node, err := libp2p.New(
+		libp2p.Identity(loadStaticIdentity()),
+		libp2p.ListenAddrStrings("/ip4/0.0.0.0/tcp/4001"),
+	)
 	if err != nil {
 		log.Fatal("Failed to create libp2p host:", err)
 	}

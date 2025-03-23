@@ -18,6 +18,7 @@ import (
 	"gioui.org/widget"
 	"gioui.org/widget/material"
 
+	"github.com/joho/godotenv"
 	libp2p "github.com/libp2p/go-libp2p"
 	dht "github.com/libp2p/go-libp2p-kad-dht"
 	"github.com/libp2p/go-libp2p/core/host"
@@ -43,6 +44,7 @@ var (
 )
 
 func main() {
+	_ = godotenv.Load() // loads from .env by default
 	log.SetFlags(log.LstdFlags | log.Lshortfile)
 	ctx := context.Background()
 	flag.StringVar(&dataDir, "data-dir", "", "Directory to store peer files")

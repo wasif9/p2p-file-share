@@ -6,3 +6,4 @@
 .env           # Environment variables (secrets)
 # Executable binary files
 *.exe
+peer-app/.env
