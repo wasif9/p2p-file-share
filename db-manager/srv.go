@@ -137,7 +137,7 @@ func heartbeatHandler(w http.ResponseWriter, r *http.Request) {
 }
 
 // Handles http requests to the route '/election/{Index}'
-// Only defined for POST
+// Only defined for GET
 func electionHandler(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodGet {
 		http.Error(w, "Only GET is allowed", http.StatusMethodNotAllowed)
@@ -150,6 +150,7 @@ func electionHandler(w http.ResponseWriter, r *http.Request) {
 		node.Status = "follower"
 	} else {
 		node.Status = "candidate"
+
 	}
 
 	err := json.NewEncoder(w).Encode(&types.Node{
@@ -161,7 +162,7 @@ func electionHandler(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 	}
-
+	election()
 }
 
 // Handles http requests to the route '/leader'
