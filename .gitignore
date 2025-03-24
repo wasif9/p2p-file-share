@@ -8,3 +8,5 @@
 *.exe
 peer-app/.env
 peer-app/node*
+peer-app/peer-app
+
