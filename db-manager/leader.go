@@ -23,8 +23,10 @@ func monitorLeader() {
 		// !HACK:
 		// this assumes that node x runs on localhost 808x.
 		// In reality, we'll need to let each node know the address (host:post) of each of it's peers, or maybe just it's successor
-
-		leaderAddr := "http://" + nodeArr[leaderIndex].IP + ":" + nodeArr[leaderIndex].Port
+		leaderAddr := "http//:localhost:8090"
+		if leaderIndex < len(nodeArr) {
+			leaderAddr = "http://" + nodeArr[leaderIndex].IP + ":" + nodeArr[leaderIndex].Port
+		}
 
 		resp, err := http.Get(leaderAddr + "/api/v1/heartbeat")
 		if err != nil {
@@ -59,7 +61,7 @@ func election() {
 	// Send Election message to other servers
 	for i := 0; i < len(nodeArr); i++ {
 
-		if node.Index > nodeArr[i].Index {
+		if nodeArr[i].Index > node.Index {
 			resp, err := http.Get("http://" + nodeArr[i].IP + ":" + nodeArr[i].Port + "/api/v1/election/" + strconv.Itoa(node.Index))
 			if err != nil {
 				log.Println("\tNo Response", err)
@@ -80,8 +82,9 @@ func election() {
 				log.Fatal(err)
 			}
 			log.Printf("node responded with %s\n", node_peer.Status)
-			if node_peer.Status == "candidate" && node.Index != node_peer.Index {
-				node.Status = "follower"
+			if node_peer.Status == "candidate" {
+				node.Status = "waiting"
+
 			}
 			nodeArr[i].Status = node_peer.Status
 
@@ -90,12 +93,13 @@ func election() {
 	}
 
 	// Handle responses from peer nodes
-	for i := 0; i < len(nodeArr); i++ {
-		// If there's another candidate present and it's not this node then wait
-		if nodeArr[i].Status == "candidate" && i != node.Index {
-			node.Status = "waiting"
-		}
-	}
+	//for i := 0; i < len(nodeArr); i++ {
+
+	// If there's another candidate present and it's not this node then wait
+	//	if nodeArr[i].Status == "candidate" && i != node.Index {
+	//		node.Status = "waiting"
+	//	}
+	//}
 
 	// If node status is candidate, then node elected leader
 	if node.Status == "candidate" {
@@ -104,9 +108,9 @@ func election() {
 		leaderElected()
 	}
 	// wait for leader election to finish
-	for node.Status == "waiting" {
-		time.Sleep(100 * time.Millisecond)
-	}
+	//for node.Status == "waiting" {
+	//	time.Sleep(100 * time.Millisecond)
+	//}
 
 	// continue to monitor the leader's heartbeat
 	go monitorLeader()

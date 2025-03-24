@@ -15,7 +15,7 @@ import (
 var err error
 var node types.Node
 var nodeArr = [10]types.Node{}
-var leaderIndex int
+var leaderIndex = 10
 
 func main() {
 	log.SetFlags(log.LstdFlags | log.Lshortfile)
@@ -23,10 +23,10 @@ func main() {
 	// TODO: Move this over to the proxy
 	node.IP, node.Port, node.Index, node.Status = "localhost", "8083", 0, "follower"
 	nodeArr[0] = node
-	node.IP, node.Port, node.Index, node.Status = "localhost", "8082", 2, "follower"
-	nodeArr[2] = node
 	node.IP, node.Port, node.Index, node.Status = "localhost", "8081", 1, "follower"
 	nodeArr[1] = node
+	node.IP, node.Port, node.Index, node.Status = "localhost", "8082", 2, "follower"
+	nodeArr[2] = node
 
 	node.IP, node.Port, node.Index, node.Status = "localhost", cfg.Port, cfg.Index, "follower"
 	// Call election to determine if there needs to be a new leader.
@@ -64,4 +64,5 @@ func main() {
 	if err != nil {
 		log.Fatal(err)
 	}
+
 }
