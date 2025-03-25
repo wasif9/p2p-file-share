@@ -119,7 +119,7 @@ func election() {
 func leaderElected() {
 
 	// create message body
-	jsonData, err := json.Marshal(leaderIndex)
+	leaderIndexJsonData, err := json.Marshal(leaderIndex)
 	if err != nil {
 		log.Println("Error encoding JSON:", err)
 		return
@@ -131,7 +131,7 @@ func leaderElected() {
 			continue
 		}
 		postReq := "http://" + nodeArr[i].IP + ":" + nodeArr[i].Port + "/api/v1/leader"
-		req, err := http.NewRequest("POST", postReq, bytes.NewBuffer(jsonData))
+		req, err := http.NewRequest("POST", postReq, bytes.NewBuffer(leaderIndexJsonData))
 		if err != nil {
 			log.Println("Error creating POST request:", err)
 			continue
@@ -156,4 +156,35 @@ func leaderElected() {
 	}
 
 	fmt.Println("sent leader elected message to all nodes")
+
+	// send a message to the reverse proxy
+	// retrieve the IP and the port number of the leader node and package them into a Node struct for JSON encoding
+	// encode the node
+	nodeJsonData, err := json.Marshal(node.IP + ":" + node.Port)
+	if err != nil {
+		fmt.Println("Error encoding JSON:", err)
+		return
+	}
+	postReq := "http://" + "0.0.0.0" + ":" + "8080" + "/api/v1/leader"
+	req, err := http.NewRequest("POST", postReq, bytes.NewBuffer(nodeJsonData))
+	if err != nil {
+		log.Println("Error creating POST request:", err)
+	}
+	req.Header.Set("Content-Type", "application/json")
+
+	resp, err := http.DefaultClient.Do(req)
+	if err != nil {
+		log.Println("Error sending POST request:", err)
+	}
+	if resp != nil {
+		defer resp.Body.Close()
+	}
+
+	respSer, err := io.ReadAll(resp.Body)
+	if err != nil {
+		log.Println("Error reading response:", err)
+	}
+
+	log.Println("Resp Status:", resp.Status)
+	log.Println("Resp Body:", string(respSer))
 }

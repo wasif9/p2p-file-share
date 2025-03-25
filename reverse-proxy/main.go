@@ -5,6 +5,7 @@ import (
 	"io"
 	"log"
 	"net/http"
+	"encoding/json"
 )
 
 func main() {
@@ -58,11 +59,12 @@ func main() {
 		case http.MethodGet:
 			fmt.Fprint(w, leaderAddr)
 		case http.MethodPost:
-			newAddress := r.URL.Query().Get("address")
-			if newAddress == "" {
-				http.Error(w, "You need to specify the 'address' query parameter", http.StatusBadRequest)
-				return
-			}
+			var newAddress string
+			err := json.NewDecoder(r.Body).Decode(&newAddress)
+			if err != nil {
+			http.Error(w, fmt.Sprintf("Invalid request: %s", err.Error()), http.StatusBadRequest)
+			return
+		}
 
 			leaderAddr = newAddress
 		default:
