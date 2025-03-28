@@ -12,4 +12,5 @@ type Heartbeat struct {
 	Index       int           `json:"node-index"`
 	Uptime      time.Duration `json:"uptime"`
 	Utilization int           `json:"utilization"`
+	LeaderIndex int           `json:"leader-index"`
 }

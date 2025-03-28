@@ -1,6 +1,7 @@
 package main
 
 import (
+	"bytes"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -8,22 +9,25 @@ import (
 	"log"
 	"net"
 	"net/http"
+	"strconv"
 	"syscall"
 	"time"
 
 	types "github.com/wasif9/p2p-file-share/pkg/models"
 )
 
-var leaderAddr string = "http://localhost:99"
+var leaderIndex int = -1
 var status string = "none"
 
 func monitorLeader() {
 	log.SetFlags(log.LstdFlags | log.Lshortfile)
 
+	leaderAddr := net.JoinHostPort(allConfigs[leaderIndex].Host, allConfigs[leaderIndex].Port)
+
 	for true {
 		time.Sleep(time.Second * 4)
 		// every 4 seconds, make sure the leader is alive
-		log.Printf("\tchecking in on node %d\n", leaderIndex)
+		log.Printf("\tchecking in on leader %s\n", leaderAddr)
 
 		resp, err := http.Get(leaderAddr + "/api/v1/heartbeat")
 		if errors.Is(err, syscall.ECONNREFUSED) || errors.Is(err, syscall.ECONNABORTED) || errors.Is(err, syscall.ECONNRESET) {
@@ -52,22 +56,21 @@ func monitorLeader() {
 func election() {
 	log.SetFlags(log.LstdFlags | log.Lshortfile)
 
-	log.Println("we'll use the power of democracy")
+	log.Println("begin election")
 	status = "candidate"
 	client := &http.Client{Timeout: time.Second * 2}
 
 	// Send Election message to other servers
-	for _, peerNodeConfig := range allConfigs {
+	for i, peerNodeConfig := range allConfigs {
 		if peerNodeConfig.Index <= cfg.Index {
 			continue
 		}
 
 		// contact all nodes with higher index
-		log.Println("sending a get...")
+		log.Printf("checking if peer %d is alive...\n", i)
 		resp, err := client.Get(fmt.Sprintf("http://%s:%s/api/v1/election/%d", peerNodeConfig.Host, peerNodeConfig.Port, cfg.Index))
 		if err != nil {
-			log.Printf("\tNo Response: %s\n", err.Error())
-			log.Printf("\t%s must be dead\n", peerNodeConfig.Host)
+			log.Printf("↳ No response from %d\n", peerNodeConfig.Index)
 			continue
 		}
 		defer resp.Body.Close()
@@ -83,11 +86,12 @@ func election() {
 
 	}
 
+	// no other candidates were alive
 	if status == "candidate" {
 		status = "leader"
-		leaderAddr = net.JoinHostPort(cfg.Host, cfg.Port)
-		log.Println("\tI AM THE WINNER!!! ♓♓")
-		// leaderElected()
+		leaderIndex = cfg.Index
+		log.Printf("I, %d am the winner\n", cfg.Index)
+		notifyFollowers()
 	}
 
 	// continue to monitor the leader's heartbeat
@@ -95,45 +99,23 @@ func election() {
 	log.Println("Done election().")
 }
 
-// func leaderElected() {
+func notifyFollowers() {
+	log.Println("notifying followers...")
+	for _, peerNodeConfig := range allConfigs {
+		resp, err := http.Post(
+			fmt.Sprintf("http://%s/api/v1/leader",
+				net.JoinHostPort(peerNodeConfig.Host, peerNodeConfig.Port)),
+			"", bytes.NewBuffer([]byte(strconv.Itoa(cfg.Index))),
+		)
+		if err != nil {
+			log.Printf("notification message to %d failed", peerNodeConfig.Index)
+			continue
+		}
+		respBytes, err := io.ReadAll(resp.Body)
+		if err != nil {
+			log.Fatal(err)
+		}
 
-// 	// create message body
-// 	jsonData, err := json.Marshal(leaderIndex)
-// 	if err != nil {
-// 		log.Println("Error encoding JSON:", err)
-// 		return
-// 	}
-
-// 	// Send messages to other nodes
-// 	for i := 0; i < len(nodeArr); i++ {
-// 		if nodeArr[i].Index == node.Index {
-// 			continue
-// 		}
-// 		postReq := fmt.Sprintf("http://%s:%s/api/v1/leader?%d", nodeArr[i].IP, nodeArr[i].Port, i)
-// 		// postReq := "http://" + nodeArr[i].IP + ":" + nodeArr[i].Port + "/api/v1/leader"
-// 		req, err := http.NewRequest("POST", postReq, bytes.NewBuffer(jsonData))
-// 		if err != nil {
-// 			log.Println("Error creating POST request:", err)
-// 			continue
-// 		}
-// 		req.Header.Set("Content-Type", "application/json")
-
-// 		resp, err := http.DefaultClient.Do(req)
-// 		if err != nil {
-// 			log.Println("Error sending POST request:", err)
-// 			continue
-// 		}
-// 		defer resp.Body.Close()
-
-// 		respSer, err := io.ReadAll(resp.Body)
-// 		if err != nil {
-// 			log.Println("Error reading response:", err)
-// 			continue
-// 		}
-
-// 		log.Println("Resp Status:", resp.Status)
-// 		log.Println("Resp Body:", string(respSer))
-// 	}
-
-// 	fmt.Println("sent leader elected message to all nodes")
-// }
+		log.Printf("node %d says: %s: '%s'", peerNodeConfig.Index, resp.Status, string(respBytes))
+	}
+}
