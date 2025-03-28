@@ -49,8 +49,11 @@ func init() {
 			cfg = config
 		}
 	}
+	if cfg.Host == "" {
+		log.Fatalf("Could not find local ip address in configs")
+	}
 
-	log.Printf("Loaded configurations %+v from %s\n", cfgs, configFilePath)
+	log.Printf("Loaded configuration %+v from %s\n", cfg, configFilePath)
 }
 
 func isLocalIP(ipStr string) bool {

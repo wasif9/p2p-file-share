@@ -26,7 +26,7 @@ func monitorLeader() {
 		}
 
 		resp, err := http.Get(leaderAddr + "/api/v1/heartbeat")
-		if err != nil {
+		if err != nil { // TODO: type check this error that it's connectoin refused / dropped
 			log.Println("\tleader DOWN!!!‼️‼️‼️‼️", err)
 
 			election()

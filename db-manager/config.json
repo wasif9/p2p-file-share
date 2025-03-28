@@ -1,9 +1,32 @@
-{
-  "index": 2,
-  "port": "8082",
-  "version": "v1",
-  "pg-host": "postgres",
-  "pg-user": "postgres",
-  "pg-password": "bradleyli859",
-  "pg-port": "5432"
-}
+[
+  {
+    "index": 0,
+    "host": "10.9.182.209",
+    "port": "8080",
+    "version": "v1",
+    "pg-host": "localhost",
+    "pg-user": "postgres",
+    "pg-password": "password",
+    "pg-port": "5432"
+  },
+  {
+    "index": 2,
+    "host": "10.9.182.209",
+    "port": "8082",
+    "version": "v1",
+    "pg-host": "localhost",
+    "pg-user": "postgres",
+    "pg-password": "password",
+    "pg-port": "5432"
+  },
+  {
+    "index": 2,
+    "host": "10.9.176.25",
+    "port": "8082",
+    "version": "v1",
+    "pg-host": "localhost",
+    "pg-user": "postgres",
+    "pg-password": "password",
+    "pg-port": "5432"
+  }
+]
