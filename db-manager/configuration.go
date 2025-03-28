@@ -8,6 +8,7 @@ import (
 	"net"
 	"net/http"
 	"os"
+	"strconv"
 )
 
 type Configuration struct {
@@ -25,8 +26,7 @@ type Configuration struct {
 var cfg Configuration
 var allConfigs []Configuration
 
-func init() {
-	log.SetFlags(log.LstdFlags | log.Lshortfile)
+func getConfig() Configuration {
 
 	if len(os.Args) < 2 {
 		log.Fatal("config file not provided")
@@ -44,19 +44,32 @@ func init() {
 		log.Fatal(err)
 	}
 
+	if len(os.Args) > 2 {
+		i, err := strconv.Atoi(os.Args[2])
+		if err != nil {
+			log.Fatalf("2nd argument <node-index> must be int. Got: '%s'", os.Args[2])
+		}
+		return allConfigs[i]
+	}
+
 	for _, config := range allConfigs {
 		if isLocalIP(config.Host) {
-			_, err = http.Get(fmt.Sprintf("http://%s:%s/api/v1/heartbeat", config.Host, config.Port))
+			_, err = http.Get(fmt.Sprintf("http://%s/api/v1/heartbeat", net.JoinHostPort(config.Host, config.Port)))
 			if err != nil { // address is not yet taken. needed for running multiple nodes on single machine
-				cfg = config
+				return config
 			}
 		}
 	}
-	if cfg.Host == "" {
-		log.Fatalf("Could not find local available address in config list")
-	}
+	log.Fatalf("Could not find local available address in config list")
+	return Configuration{}
+}
 
-	log.Printf("Loaded configuration %+v from %s\n", cfg, configFilePath)
+func init() {
+	log.SetFlags(log.LstdFlags | log.Lshortfile)
+
+	cfg = getConfig()
+
+	log.Printf("Loaded configuration %+v\n", cfg)
 }
 
 func isLocalIP(ipStr string) bool {
