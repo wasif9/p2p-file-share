@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"log"
 	"net"
+	"net/http"
 	"os"
 )
 
@@ -22,6 +23,7 @@ type Configuration struct {
 }
 
 var cfg Configuration
+var allConfigs []Configuration
 
 func init() {
 	log.SetFlags(log.LstdFlags | log.Lshortfile)
@@ -37,20 +39,21 @@ func init() {
 		log.Fatal(errors.Join(errors.New("Failed to read server configuration file"), err))
 	}
 
-	var cfgs []Configuration
-
-	err = json.Unmarshal(bytes, &cfgs)
+	err = json.Unmarshal(bytes, &allConfigs)
 	if err != nil {
 		log.Fatal(err)
 	}
 
-	for _, config := range cfgs {
+	for _, config := range allConfigs {
 		if isLocalIP(config.Host) {
-			cfg = config
+			_, err = http.Get(fmt.Sprintf("http://%s:%s/api/v1/heartbeat", config.Host, config.Port))
+			if err != nil { // address is not yet taken. needed for running multiple nodes on single machine
+				cfg = config
+			}
 		}
 	}
 	if cfg.Host == "" {
-		log.Fatalf("Could not find local ip address in configs")
+		log.Fatalf("Could not find local available address in config list")
 	}
 
 	log.Printf("Loaded configuration %+v from %s\n", cfg, configFilePath)
