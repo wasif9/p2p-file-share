@@ -19,8 +19,7 @@ var leaderIndex = 10
 
 func main() {
 	log.SetFlags(log.LstdFlags | log.Lshortfile)
-	// Configure node array
-	// TODO: Move this over to the proxy
+
 	node.IP, node.Port, node.Index, node.Status = "localhost", "8083", 0, "follower"
 	nodeArr[0] = node
 	node.IP, node.Port, node.Index, node.Status = "localhost", "8081", 1, "follower"
