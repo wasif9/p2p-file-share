@@ -20,7 +20,7 @@
     "pg-port": "5432"
   },
   {
-    "index": 3,
+    "index": 2,
     "host": "poopee",
     "port": "8082",
     "version": "v1",
@@ -30,7 +30,7 @@
     "pg-port": "5432"
   },
   {
-    "index": 1,
+    "index": 3,
     "host": "127.0.0.1",
     "port": "8888",
     "version": "v1",
