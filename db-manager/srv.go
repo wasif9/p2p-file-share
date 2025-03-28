@@ -7,7 +7,6 @@ import (
 	"math/rand"
 	"net/http"
 	"os"
-	"strconv"
 	"strings"
 	"time"
 
@@ -144,53 +143,40 @@ func electionHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	w.Header().Set("Content-Type", "application/json")
-	index, _ := strconv.Atoi(strings.TrimPrefix(r.URL.Path, "/api/"+cfg.Version+"/election/"))
 
-	if index > node.Index {
-		node.Status = "follower"
-	} else {
-		node.Status = "candidate"
-
-	}
-
-	err := json.NewEncoder(w).Encode(&types.Node{
-		IP:     node.IP,
-		Port:   node.Port,
-		Index:  node.Index,
-		Status: node.Status,
-	})
+	_, err := fmt.Fprint(w, "candidate")
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 	}
-	election()
+	// election()
 }
 
 // Handles http requests to the route '/leader'
-func leaderHandler() func(w http.ResponseWriter, r *http.Request) {
-	leaderHandler := func(w http.ResponseWriter, r *http.Request) {
-		w.Header().Set("Content-Type", "application/json")
+// func leaderHandler() func(w http.ResponseWriter, r *http.Request) {
+// 	leaderHandler := func(w http.ResponseWriter, r *http.Request) {
+// 		w.Header().Set("Content-Type", "application/json")
 
-		if r.Method != http.MethodPost {
-			http.Error(w, "Only POST is allowed", http.StatusMethodNotAllowed)
-			return
-		}
+// 		if r.Method != http.MethodPost {
+// 			http.Error(w, "Only POST is allowed", http.StatusMethodNotAllowed)
+// 			return
+// 		}
 
-		var newLeaderIndex int
+// 		var newLeaderIndex int
 
-		err = json.NewDecoder(r.Body).Decode(&newLeaderIndex)
-		if err != nil {
-			http.Error(w, fmt.Sprintf("Invalid request: %s", err.Error()), http.StatusBadRequest)
-			return
-		}
+// 		err = json.NewDecoder(r.Body).Decode(&newLeaderIndex)
+// 		if err != nil {
+// 			http.Error(w, fmt.Sprintf("Invalid request: %s", err.Error()), http.StatusBadRequest)
+// 			return
+// 		}
 
-		// udpate leader index and change node status
-		leaderIndex = newLeaderIndex
-		node.Status = "follower"
+// 		// udpate leader index and change node status
+// 		leaderIndex = newLeaderIndex
+// 		node.Status = "follower"
 
-		w.WriteHeader(http.StatusOK)
-		fmt.Fprintln(w, "Success!")
+// 		w.WriteHeader(http.StatusOK)
+// 		fmt.Fprintln(w, "Success!")
 
-	}
+// 	}
 
-	return leaderHandler
-}
+// 	return leaderHandler
+// }
