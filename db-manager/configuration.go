@@ -12,9 +12,8 @@ import (
 )
 
 type Configuration struct {
-	Host        string `json:"host"`
+	Address     string `json:"address"`
 	Index       int    `json:"index"`
-	Port        string `json:"port"`
 	Version     string `json:"version"`
 	Pg_host     string `json:"pg-host"`
 	Pg_user     string `json:"pg-user"`
@@ -53,8 +52,8 @@ func getConfig() Configuration {
 	}
 
 	for _, config := range allConfigs {
-		if isLocalIP(config.Host) {
-			_, err = http.Get(fmt.Sprintf("http://%s/api/v1/heartbeat", net.JoinHostPort(config.Host, config.Port)))
+		if isLocalIP(config.Address) {
+			_, err = http.Get(fmt.Sprintf("http://%s/api/v1/heartbeat", config.Address))
 			if err != nil { // address is not yet taken. needed for running multiple nodes on single machine
 				return config
 			}

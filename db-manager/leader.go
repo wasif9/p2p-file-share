@@ -7,7 +7,6 @@ import (
 	"fmt"
 	"io"
 	"log"
-	"net"
 	"net/http"
 	"strconv"
 	"syscall"
@@ -22,7 +21,7 @@ var status string = "none"
 func monitorLeader() {
 	log.SetFlags(log.LstdFlags | log.Lshortfile)
 
-	leaderAddr := net.JoinHostPort(allConfigs[leaderIndex].Host, allConfigs[leaderIndex].Port)
+	leaderAddr := allConfigs[leaderIndex].Address
 
 	for true {
 		time.Sleep(time.Second * 4)
@@ -68,7 +67,8 @@ func election() {
 
 		// contact all nodes with higher index
 		log.Printf("checking if %d is alive...\n", i)
-		resp, err := client.Get(fmt.Sprintf("http://%s:%s/api/v1/election/%d", peerNodeConfig.Host, peerNodeConfig.Port, cfg.Index))
+		resp, err := client.Get(fmt.Sprintf("http://%s/api/v1/election/%d",
+			peerNodeConfig.Address, cfg.Index))
 		if err != nil {
 			log.Printf("↳ No response from %d\n", peerNodeConfig.Index)
 			continue
@@ -80,7 +80,7 @@ func election() {
 			log.Fatal(err)
 		}
 
-		log.Printf("%s:%s is alive!\n", peerNodeConfig.Host, peerNodeConfig.Port)
+		log.Printf("%d is alive!\n", peerNodeConfig.Index)
 		log.Printf("%s: %s\n", resp.Status, string(body))
 		status = "loser"
 
@@ -96,7 +96,7 @@ func election() {
 
 	// continue to monitor the leader's heartbeat
 	// go monitorLeader()
-	log.Println("Done election().")
+	log.Println("Done election.")
 }
 
 func notifyFollowers() {
@@ -104,7 +104,7 @@ func notifyFollowers() {
 	for _, peerNodeConfig := range allConfigs {
 		resp, err := http.Post(
 			fmt.Sprintf("http://%s/api/v1/leader",
-				net.JoinHostPort(peerNodeConfig.Host, peerNodeConfig.Port)),
+				peerNodeConfig.Address),
 			"", bytes.NewBuffer([]byte(strconv.Itoa(cfg.Index))),
 		)
 		if err != nil {

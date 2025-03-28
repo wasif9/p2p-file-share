@@ -3,7 +3,6 @@ package main
 import (
 	"fmt"
 	"log"
-	"net"
 	"net/http"
 
 	types "github.com/wasif9/p2p-file-share/pkg/models"
@@ -45,8 +44,8 @@ func main() {
 	http.HandleFunc("/api/"+cfg.Version+"/election/", electionHandler)
 	http.HandleFunc("/api/"+cfg.Version+"/leader", leaderHandler)
 
-	log.Printf("Server starting on port %s...\n", cfg.Port)
-	err = http.ListenAndServe(net.JoinHostPort(cfg.Host, cfg.Port), nil)
+	log.Printf("Node %d serving on %s...\n", cfg.Index, cfg.Address)
+	err = http.ListenAndServe(cfg.Address, nil)
 	if err != nil {
 		log.Fatal(err)
 	}

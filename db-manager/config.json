@@ -1,8 +1,7 @@
 [
   {
     "index": 0,
-    "host": "127.0.0.1",
-    "port": "8080",
+    "address": "127.0.0.1:8080",
     "version": "v1",
     "pg-host": "localhost",
     "pg-user": "postgres",
@@ -11,8 +10,7 @@
   },
   {
     "index": 1,
-    "host": "127.0.0.1",
-    "port": "8082",
+    "address": "127.0.0.1:8082",
     "version": "v1",
     "pg-host": "localhost",
     "pg-user": "postgres",
@@ -21,8 +19,7 @@
   },
   {
     "index": 2,
-    "host": "poopee",
-    "port": "8082",
+    "address": "poopee:8082",
     "version": "v1",
     "pg-host": "localhost",
     "pg-user": "postgres",
@@ -31,8 +28,7 @@
   },
   {
     "index": 3,
-    "host": "127.0.0.1",
-    "port": "8888",
+    "address": "127.0.0.1:8888",
     "version": "v1",
     "pg-host": "localhost",
     "pg-user": "postgres",
