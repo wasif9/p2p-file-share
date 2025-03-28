@@ -153,26 +153,23 @@ func electionHandler(w http.ResponseWriter, r *http.Request) {
 }
 
 // Handles http requests to the route '/leader'
-func leaderHandler() func(w http.ResponseWriter, r *http.Request) {
-	leaderHandler := func(w http.ResponseWriter, r *http.Request) {
-		w.Header().Set("Content-Type", "application/json")
+func leaderHandler(w http.ResponseWriter, r *http.Request) {
+	w.Header().Set("Content-Type", "application/json")
 
-		if r.Method != http.MethodPost {
-			http.Error(w, "Only POST is allowed", http.StatusMethodNotAllowed)
-			return
-		}
-
-		err = json.NewDecoder(r.Body).Decode(&leaderIndex) // updates the leaderIndex
-		if err != nil {
-			http.Error(w, fmt.Sprintf("Invalid request: %s", err.Error()), http.StatusBadRequest)
-			return
-		}
-
-		status = "follower"
-
-		w.WriteHeader(http.StatusOK)
-		fmt.Fprint(w, "Successfully updated leader!")
+	if r.Method != http.MethodPost {
+		http.Error(w, "Only POST is allowed", http.StatusMethodNotAllowed)
+		return
 	}
 
-	return leaderHandler
+	err = json.NewDecoder(r.Body).Decode(&leaderIndex) // updates the leaderIndex
+	if err != nil {
+		http.Error(w, fmt.Sprintf("Invalid request: %s", err.Error()), http.StatusBadRequest)
+		return
+	}
+
+	status = "follower"
+
+	w.WriteHeader(http.StatusOK)
+	fmt.Fprint(w, "Successfully updated leader!")
+
 }

@@ -43,7 +43,7 @@ func main() {
 	http.HandleFunc("/api/"+cfg.Version+"/kill", killHandler)
 	http.HandleFunc("/api/"+cfg.Version+"/heartbeat", heartbeatHandler)
 	http.HandleFunc("/api/"+cfg.Version+"/election/", electionHandler)
-	http.HandleFunc("/api/"+cfg.Version+"/leader", leaderHandler())
+	http.HandleFunc("/api/"+cfg.Version+"/leader", leaderHandler)
 
 	log.Printf("Server starting on port %s...\n", cfg.Port)
 	err = http.ListenAndServe(net.JoinHostPort(cfg.Host, cfg.Port), nil)

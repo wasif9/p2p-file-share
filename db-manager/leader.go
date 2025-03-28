@@ -67,7 +67,7 @@ func election() {
 		}
 
 		// contact all nodes with higher index
-		log.Printf("checking if peer %d is alive...\n", i)
+		log.Printf("checking if %d is alive...\n", i)
 		resp, err := client.Get(fmt.Sprintf("http://%s:%s/api/v1/election/%d", peerNodeConfig.Host, peerNodeConfig.Port, cfg.Index))
 		if err != nil {
 			log.Printf("↳ No response from %d\n", peerNodeConfig.Index)
