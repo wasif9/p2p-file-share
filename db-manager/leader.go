@@ -22,9 +22,14 @@ func monitorLeader() {
 	log.SetFlags(log.LstdFlags | log.Lshortfile)
 
 	for true {
-		time.Sleep(time.Second * 10)
+		time.Sleep(time.Second * 5)
 		// every 4 seconds, make sure the leader is alive
 		log.Printf("checking in on leader %d\n", leaderIndex)
+
+		if leaderIndex == -1 {
+			election()
+			continue
+		}
 
 		resp, err := http.Get(fmt.Sprintf("http://%s/api/v1/heartbeat", allConfigs[leaderIndex].Address))
 		if errors.Is(err, syscall.ECONNREFUSED) ||
@@ -34,8 +39,8 @@ func monitorLeader() {
 
 			log.Println("‼️‼️‼️‼️ leader DOWN!!!‼️‼️‼️‼️", err)
 
-			// election()
-			return
+			election()
+			continue
 		}
 
 		body, err := io.ReadAll(resp.Body)
@@ -72,7 +77,7 @@ func election() {
 		resp, err := client.Get(fmt.Sprintf("http://%s/api/v1/election/%d",
 			peerNodeConfig.Address, cfg.Index))
 		if err != nil {
-			log.Printf("↳ No response from %d\n", peerNodeConfig.Index)
+			log.Printf("↳ No response from %d: %s\n", peerNodeConfig.Index, err)
 			continue
 		}
 		defer resp.Body.Close()
@@ -98,7 +103,6 @@ func election() {
 
 	// continue to monitor the leader's heartbeat
 	log.Println("Done election.")
-	go monitorLeader()
 }
 
 func notifyFollowers() {

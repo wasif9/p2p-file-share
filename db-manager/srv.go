@@ -149,7 +149,8 @@ func electionHandler(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 	}
-	election()
+
+	go election()
 }
 
 // Handles http requests to the route '/leader'
