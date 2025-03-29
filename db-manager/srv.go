@@ -168,6 +168,7 @@ func leaderHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	status = "follower"
+	log.Printf("my new leader is %d", leaderIndex)
 
 	w.WriteHeader(http.StatusOK)
 	fmt.Fprint(w, "Successfully updated leader!")

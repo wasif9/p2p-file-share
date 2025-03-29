@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"log"
 	"net/http"
+	"time"
 
 	types "github.com/wasif9/p2p-file-share/pkg/models"
 	"gorm.io/driver/postgres"
@@ -17,7 +18,10 @@ func main() {
 	log.SetFlags(log.LstdFlags | log.Lshortfile)
 
 	// Call election to determine if there needs to be a new leader.
-	go election()
+	go func() {
+		time.Sleep(time.Second * 4) // try to serve on self's address before telling other's that self is leader, in case own address is bad
+		election()
+	}()
 
 	// Connection to the database
 	dsn := fmt.Sprintf(

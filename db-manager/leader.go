@@ -21,22 +21,21 @@ var status string = "none"
 func monitorLeader() {
 	log.SetFlags(log.LstdFlags | log.Lshortfile)
 
-	leaderAddr := allConfigs[leaderIndex].Address
-
 	for true {
-		time.Sleep(time.Second * 4)
+		time.Sleep(time.Second * 10)
 		// every 4 seconds, make sure the leader is alive
 		log.Printf("checking in on leader %d\n", leaderIndex)
 
-		resp, err := http.Get(fmt.Sprintf("http://%s/api/v1/heartbeat", leaderAddr))
-		if errors.Is(err, syscall.ECONNREFUSED) || errors.Is(err, syscall.ECONNABORTED) || errors.Is(err, syscall.ECONNRESET) {
+		resp, err := http.Get(fmt.Sprintf("http://%s/api/v1/heartbeat", allConfigs[leaderIndex].Address))
+		if errors.Is(err, syscall.ECONNREFUSED) ||
+			errors.Is(err, syscall.ECONNABORTED) ||
+			errors.Is(err, syscall.ECONNRESET) ||
+			err != nil { // makes aboce checks useless
+
 			log.Println("‼️‼️‼️‼️ leader DOWN!!!‼️‼️‼️‼️", err)
 
 			// election()
 			return
-		}
-		if err != nil {
-			log.Fatal(err)
 		}
 
 		body, err := io.ReadAll(resp.Body)
