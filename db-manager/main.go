@@ -14,8 +14,6 @@ import (
 var err error
 
 func main() {
-	log.SetFlags(log.LstdFlags | log.Lshortfile)
-
 	// Call election to determine if there needs to be a new leader.
 	go monitorLeader()
 

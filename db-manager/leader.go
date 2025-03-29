@@ -16,8 +16,6 @@ import (
 var leaderIndex int = -1
 
 func monitorLeader() {
-	log.SetFlags(log.LstdFlags | log.Lshortfile)
-
 	for true {
 		time.Sleep(time.Second * 5)
 
