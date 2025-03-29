@@ -3,13 +3,11 @@ package main
 import (
 	"bytes"
 	"encoding/json"
-	"errors"
 	"fmt"
 	"io"
 	"log"
 	"net/http"
 	"strconv"
-	"syscall"
 	"time"
 
 	types "github.com/wasif9/p2p-file-share/pkg/models"
@@ -23,21 +21,17 @@ func monitorLeader() {
 
 	for true {
 		time.Sleep(time.Second * 5)
-		// every 4 seconds, make sure the leader is alive
-		log.Printf("checking in on leader %d\n", leaderIndex)
 
 		if leaderIndex == -1 {
+			log.Println("leader index is unset, calling election")
+
 			election()
 			continue
 		}
 
 		resp, err := http.Get(fmt.Sprintf("http://%s/api/v1/heartbeat", allConfigs[leaderIndex].Address))
-		if errors.Is(err, syscall.ECONNREFUSED) ||
-			errors.Is(err, syscall.ECONNABORTED) ||
-			errors.Is(err, syscall.ECONNRESET) ||
-			err != nil { // makes aboce checks useless
-
-			log.Println("‼️‼️‼️‼️ leader DOWN!!!‼️‼️‼️‼️", err)
+		if err != nil {
+			log.Println("‼️ leader down", err)
 
 			election()
 			continue
@@ -97,7 +91,7 @@ func election() {
 	if status == "candidate" {
 		status = "leader"
 		leaderIndex = cfg.Index
-		log.Printf("I, %d am the winner\n", cfg.Index)
+		log.Printf("✅ I, %d am the winner\n", cfg.Index)
 		notifyFollowers()
 	}
 
@@ -114,7 +108,7 @@ func notifyFollowers() {
 			"", bytes.NewBuffer([]byte(strconv.Itoa(cfg.Index))),
 		)
 		if err != nil {
-			log.Printf("notification message to %d failed", peerNodeConfig.Index)
+			log.Printf("notification message to %d failed: %s", peerNodeConfig.Index, err)
 			continue
 		}
 		respBytes, err := io.ReadAll(resp.Body)
@@ -122,6 +116,11 @@ func notifyFollowers() {
 			log.Fatal(err)
 		}
 
-		log.Printf("node %d says: %s: '%s'", peerNodeConfig.Index, resp.Status, string(respBytes))
+		if resp.StatusCode == http.StatusOK {
+			log.Printf("node %d ack'ed notification", peerNodeConfig.Index)
+
+		} else {
+			log.Printf("node %d says %s: %s", peerNodeConfig.Index, resp.Status, string(respBytes))
+		}
 	}
 }
