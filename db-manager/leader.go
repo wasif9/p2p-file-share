@@ -88,6 +88,7 @@ func election() {
 		leaderIndex = cfg.Index
 		log.Printf("✅ I, %d am the winner\n", cfg.Index)
 		notifyFollowers()
+		notifyReverseProxy()
 	}
 }
 
@@ -115,4 +116,22 @@ func notifyFollowers() {
 			log.Printf("node %d says %s: %s", peerNodeConfig.Index, resp.Status, string(respBytes))
 		}
 	}
+}
+
+func notifyReverseProxy() {
+	resp, err := http.Post(fmt.Sprintf("http://%s/leader?address=%s", rpConfig.Address, cfg.Address), "", nil)
+	if err != nil {
+		log.Fatal("failed to contact reverse-proxy: ", err)
+	}
+
+	if resp.StatusCode != http.StatusOK {
+		respBytes, err := io.ReadAll(resp.Body)
+		if err != nil {
+			log.Fatal(err)
+		}
+		log.Printf("unexpected response from reverse-proxy: %s: %s\n", resp.Status, string(respBytes))
+		return
+	}
+
+	log.Println("reverse-proxy successfully updated")
 }

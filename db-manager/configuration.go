@@ -8,7 +8,7 @@ import (
 	"strconv"
 )
 
-type Configuration struct {
+type DbMgrConfig struct {
 	Address     string `json:"address"`
 	Index       int    `json:"index"`
 	Version     string `json:"version"`
@@ -19,8 +19,17 @@ type Configuration struct {
 	Pg_port     string `json:"pg-port"`
 }
 
-var cfg Configuration
-var allConfigs []Configuration
+type revProxyConfig struct {
+	Address string `json:"address"`
+}
+type superConfig struct {
+	revProxyConfig   `json:"reverse-proxy"`
+	DbManagersConfig []DbMgrConfig `json:"db-managers"`
+}
+
+var cfg DbMgrConfig
+var allConfigs []DbMgrConfig
+var rpConfig revProxyConfig
 
 func init() {
 	log.SetFlags(log.LstdFlags | log.Lshortfile)
@@ -36,10 +45,14 @@ func init() {
 		log.Fatal(errors.Join(errors.New("Failed to read server configuration file"), err))
 	}
 
-	err = json.Unmarshal(bytes, &allConfigs)
+	mySuperConfig := superConfig{}
+	err = json.Unmarshal(bytes, &mySuperConfig)
 	if err != nil {
 		log.Fatal(err)
 	}
+
+	allConfigs = mySuperConfig.DbManagersConfig
+	rpConfig = mySuperConfig.revProxyConfig
 
 	i, err := strconv.Atoi(os.Args[2])
 	if err != nil {
