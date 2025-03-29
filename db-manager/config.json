@@ -28,7 +28,7 @@
   },
   {
     "index": 3,
-    "address": "127.0.0.1:8083",
+    "address": "badhost:8083",
     "version": "v1",
     "pg-host": "localhost",
     "pg-user": "postgres",

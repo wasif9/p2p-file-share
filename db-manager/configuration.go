@@ -3,10 +3,7 @@ package main
 import (
 	"encoding/json"
 	"errors"
-	"fmt"
 	"log"
-	"net"
-	"net/http"
 	"os"
 	"strconv"
 )
@@ -25,10 +22,11 @@ type Configuration struct {
 var cfg Configuration
 var allConfigs []Configuration
 
-func getConfig() Configuration {
+func init() {
+	log.SetFlags(log.LstdFlags | log.Lshortfile)
 
-	if len(os.Args) < 2 {
-		log.Fatal("config file not provided")
+	if len(os.Args) < 3 {
+		log.Fatal("usage: go run ./... <config-file> <node-index>")
 	}
 
 	configFilePath := os.Args[1]
@@ -43,74 +41,11 @@ func getConfig() Configuration {
 		log.Fatal(err)
 	}
 
-	if len(os.Args) > 2 {
-		i, err := strconv.Atoi(os.Args[2])
-		if err != nil {
-			log.Fatalf("2nd argument <node-index> must be int. Got: '%s'", os.Args[2])
-		}
-		return allConfigs[i]
+	i, err := strconv.Atoi(os.Args[2])
+	if err != nil {
+		log.Fatalf("2nd argument <node-index> must be int. Got: '%s'", os.Args[2])
 	}
-
-	for _, config := range allConfigs {
-		if isLocalIP(config.Address) {
-			_, err = http.Get(fmt.Sprintf("http://%s/api/v1/heartbeat", config.Address))
-			if err != nil { // address is not yet taken. needed for running multiple nodes on single machine
-				return config
-			}
-		}
-	}
-	log.Fatalf("Could not find local available address in config list")
-	return Configuration{}
-}
-
-func init() {
-	log.SetFlags(log.LstdFlags | log.Lshortfile)
-
-	cfg = getConfig()
+	cfg = allConfigs[i]
 
 	log.Printf("Loaded configuration %+v\n", cfg)
-}
-
-func isLocalIP(ipStr string) bool {
-	// Parse the input IP address
-	inputIP := net.ParseIP(ipStr)
-	if inputIP == nil {
-		fmt.Println("Invalid IP address")
-		return false
-	}
-
-	// Get all network interfaces
-	interfaces, err := net.Interfaces()
-	if err != nil {
-		fmt.Println("Error getting network interfaces:", err)
-		return false
-	}
-
-	// Iterate through network interfaces
-	for _, iface := range interfaces {
-		// Get addresses for this interface
-		addrs, err := iface.Addrs()
-		if err != nil {
-			continue
-		}
-
-		// Check each address
-		for _, addr := range addrs {
-			// Convert to IP network
-			var ip net.IP
-			switch v := addr.(type) {
-			case *net.IPNet:
-				ip = v.IP
-			case *net.IPAddr:
-				ip = v.IP
-			}
-
-			// Compare IPs
-			if ip != nil && ip.Equal(inputIP) {
-				return true
-			}
-		}
-	}
-
-	return false
 }
