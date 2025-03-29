@@ -83,7 +83,8 @@ func election() {
 
 		log.Printf("%d is alive!\n", peerNodeConfig.Index)
 		log.Printf("%s: %s\n", resp.Status, string(body))
-		winner = false // there is a bigger node index alive
+		winner = false // there is a bigger node index alive. That node will continue the process and we will head from the winner eventually
+		return
 	}
 
 	// no bigger node indeces were alive
@@ -92,8 +93,6 @@ func election() {
 		log.Printf("✅ I, %d am the winner\n", cfg.Index)
 		notifyFollowers()
 	}
-
-	log.Println("Done election.")
 }
 
 func notifyFollowers() {
