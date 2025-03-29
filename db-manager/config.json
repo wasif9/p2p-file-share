@@ -10,7 +10,7 @@
   },
   {
     "index": 1,
-    "address": "127.0.0.1:8082",
+    "address": "127.0.0.1:8081",
     "version": "v1",
     "pg-host": "localhost",
     "pg-user": "postgres",
@@ -19,7 +19,7 @@
   },
   {
     "index": 2,
-    "address": "poopee:8082",
+    "address": "10.0.0.215:8082",
     "version": "v1",
     "pg-host": "localhost",
     "pg-user": "postgres",
@@ -28,7 +28,7 @@
   },
   {
     "index": 3,
-    "address": "127.0.0.1:8888",
+    "address": "127.0.0.1:8083",
     "version": "v1",
     "pg-host": "localhost",
     "pg-user": "postgres",
