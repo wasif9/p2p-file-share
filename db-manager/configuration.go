@@ -6,30 +6,13 @@ import (
 	"log"
 	"os"
 	"strconv"
+
+	types "github.com/wasif9/p2p-file-share/pkg/models"
 )
 
-type DbMgrConfig struct {
-	Address     string `json:"address"`
-	Index       int    `json:"index"`
-	Version     string `json:"version"`
-	Pg_host     string `json:"pg-host"`
-	Pg_user     string `json:"pg-user"`
-	Pg_password string `json:"pg-password"`
-	Pg_database string `json:"pg-database"`
-	Pg_port     string `json:"pg-port"`
-}
-
-type revProxyConfig struct {
-	Address string `json:"address"`
-}
-type superConfig struct {
-	revProxyConfig   `json:"reverse-proxy"`
-	DbManagersConfig []DbMgrConfig `json:"db-managers"`
-}
-
-var cfg DbMgrConfig
-var allConfigs []DbMgrConfig
-var rpConfig revProxyConfig
+var cfg types.DbMgrConfig
+var allConfigs []types.DbMgrConfig
+var rpConfig types.RevProxyConfig
 
 func init() {
 	log.SetFlags(log.LstdFlags | log.Lshortfile)
@@ -45,14 +28,14 @@ func init() {
 		log.Fatal(errors.Join(errors.New("Failed to read server configuration file"), err))
 	}
 
-	mySuperConfig := superConfig{}
+	mySuperConfig := types.SuperConfig{}
 	err = json.Unmarshal(bytes, &mySuperConfig)
 	if err != nil {
 		log.Fatal(err)
 	}
 
 	allConfigs = mySuperConfig.DbManagersConfig
-	rpConfig = mySuperConfig.revProxyConfig
+	rpConfig = mySuperConfig.RpConfig
 
 	i, err := strconv.Atoi(os.Args[2])
 	if err != nil {
