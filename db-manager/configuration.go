@@ -34,7 +34,7 @@ func init() {
 		log.Fatal(err)
 	}
 
-	allConfigs = mySuperConfig.DbManagersConfig
+	allConfigs = mySuperConfig.DbManagerConfigs
 	rpConfig = mySuperConfig.RpConfig
 
 	i, err := strconv.Atoi(os.Args[2])

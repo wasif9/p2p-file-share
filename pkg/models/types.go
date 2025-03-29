@@ -32,5 +32,5 @@ type RevProxyConfig struct {
 
 type SuperConfig struct {
 	RpConfig         RevProxyConfig `json:"reverse-proxy"`
-	DbManagersConfig []DbMgrConfig  `json:"db-managers"`
+	DbManagerConfigs []DbMgrConfig  `json:"db-managers"`
 }
