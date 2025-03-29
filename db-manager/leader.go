@@ -14,7 +14,6 @@ import (
 )
 
 var leaderIndex int = -1
-var status string = "none"
 
 func monitorLeader() {
 	log.SetFlags(log.LstdFlags | log.Lshortfile)
@@ -31,7 +30,7 @@ func monitorLeader() {
 
 		resp, err := http.Get(fmt.Sprintf("http://%s/api/v1/heartbeat", allConfigs[leaderIndex].Address))
 		if err != nil {
-			log.Println("‼️ leader down", err)
+			log.Println("‼️ leader down,", err)
 
 			election()
 			continue
@@ -57,7 +56,8 @@ func election() {
 	log.SetFlags(log.LstdFlags | log.Lshortfile)
 
 	log.Println("begin election")
-	status = "candidate"
+
+	winner := true // assume I am the biggest node index alive
 	client := &http.Client{Timeout: time.Second * 2}
 
 	// Send Election message to other servers
@@ -83,19 +83,16 @@ func election() {
 
 		log.Printf("%d is alive!\n", peerNodeConfig.Index)
 		log.Printf("%s: %s\n", resp.Status, string(body))
-		status = "loser"
-
+		winner = false // there is a bigger node index alive
 	}
 
-	// no other candidates were alive
-	if status == "candidate" {
-		status = "leader"
+	// no bigger node indeces were alive
+	if winner {
 		leaderIndex = cfg.Index
 		log.Printf("✅ I, %d am the winner\n", cfg.Index)
 		notifyFollowers()
 	}
 
-	// continue to monitor the leader's heartbeat
 	log.Println("Done election.")
 }
 
