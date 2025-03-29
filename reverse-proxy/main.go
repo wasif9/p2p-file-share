@@ -1,24 +1,49 @@
 package main
 
 import (
+	"encoding/json"
 	"fmt"
 	"io"
 	"log"
 	"net/http"
+	"os"
+
+	types "github.com/wasif9/p2p-file-share/pkg/models"
 )
 
-func main() {
-	// Define addresses
-	sourceAddr := "0.0.0.0:8080"
-	leaderAddr := "http://localhost:8081" // TODO: !hardcoded
+var address string
+var leaderAddr string
 
-	// Create a handler function
+func init() {
+	log.SetFlags(log.LstdFlags | log.Lshortfile)
+
+	if len(os.Args) < 2 {
+		log.Fatalln("usage: go run ./... <superconfiguration-filepath>")
+	}
+	configFilePath := os.Args[1]
+
+	bytes, err := os.ReadFile(configFilePath)
+	if err != nil {
+		log.Fatalln("failed to read configuration file: ", err)
+	}
+
+	mySuperConfiguration := types.SuperConfig{}
+	err = json.Unmarshal(bytes, &mySuperConfiguration)
+	if err != nil {
+		log.Fatalln("failed to unmarshal configuration file: ", err)
+	}
+
+	address = mySuperConfiguration.RpConfig.Address
+	leaderAddr = "unset"
+}
+
+func main() {
+
 	http.HandleFunc("/api/", func(w http.ResponseWriter, r *http.Request) {
-		// Check if the path starts with /api
 		// Forward request to target server
-		proxyReq, err := http.NewRequest(r.Method, leaderAddr+r.URL.Path+"?"+r.URL.RawQuery, r.Body)
+		proxyReq, err := http.NewRequest(r.Method, "http://"+leaderAddr+r.URL.Path+"?"+r.URL.RawQuery, r.Body)
 		if err != nil {
-			http.Error(w, "Error creating proxy request", http.StatusInternalServerError)
+			http.Error(w, fmt.Sprintf("Error creating proxy request: %s", err), http.StatusInternalServerError)
 			return
 		}
 
@@ -33,7 +58,7 @@ func main() {
 		client := &http.Client{}
 		resp, err := client.Do(proxyReq)
 		if err != nil {
-			http.Error(w, "Error forwarding request", http.StatusBadGateway)
+			http.Error(w, fmt.Sprintf("Error forwarding request: %s", err), http.StatusBadGateway)
 			return
 		}
 		defer resp.Body.Close()
@@ -65,14 +90,15 @@ func main() {
 			}
 
 			leaderAddr = newAddress
+			log.Printf("- Forwarding /api/* requests to %s\n", leaderAddr)
 		default:
 			http.Error(w, "", http.StatusMethodNotAllowed)
 			return
 		}
 
 	})
-	// Start the server
-	fmt.Printf("Starting proxy server on %s\n", sourceAddr)
-	fmt.Printf("- Forwarding /api/* requests to %s\n", leaderAddr)
-	log.Fatal(http.ListenAndServe(sourceAddr, nil))
+
+	log.Printf("Starting proxy server on %s\n", address)
+	log.Printf("- Forwarding /api/* requests to %s\n", leaderAddr)
+	log.Fatal(http.ListenAndServe(address, nil))
 }

@@ -6,21 +6,13 @@ import (
 	"log"
 	"os"
 	"strconv"
+
+	types "github.com/wasif9/p2p-file-share/pkg/models"
 )
 
-type Configuration struct {
-	Address     string `json:"address"`
-	Index       int    `json:"index"`
-	Version     string `json:"version"`
-	Pg_host     string `json:"pg-host"`
-	Pg_user     string `json:"pg-user"`
-	Pg_password string `json:"pg-password"`
-	Pg_database string `json:"pg-database"`
-	Pg_port     string `json:"pg-port"`
-}
-
-var cfg Configuration
-var allConfigs []Configuration
+var cfg types.DbMgrConfig
+var allConfigs []types.DbMgrConfig
+var rpConfig types.RevProxyConfig
 
 func init() {
 	log.SetFlags(log.LstdFlags | log.Lshortfile)
@@ -36,10 +28,14 @@ func init() {
 		log.Fatal(errors.Join(errors.New("Failed to read server configuration file"), err))
 	}
 
-	err = json.Unmarshal(bytes, &allConfigs)
+	mySuperConfig := types.SuperConfig{}
+	err = json.Unmarshal(bytes, &mySuperConfig)
 	if err != nil {
 		log.Fatal(err)
 	}
+
+	allConfigs = mySuperConfig.DbManagerConfigs
+	rpConfig = mySuperConfig.RpConfig
 
 	i, err := strconv.Atoi(os.Args[2])
 	if err != nil {
