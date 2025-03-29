@@ -5,7 +5,25 @@ import (
 	"io"
 	"log"
 	"net/http"
+	"os"
 )
+
+var address string
+
+func init() {
+	log.SetFlags(log.LstdFlags | log.Lshortfile)
+
+	if len(os.Args) < 2 {
+		log.Fatalln("usage: go run ./... <superconfiguration-filepath>")
+	}
+	configFilePath := os.Args[1]
+
+	bytes, err := os.ReadFile(configFilePath)
+	if err != nil {
+		log.Fatalln("failed to read configuration file: ", err)
+	}
+	_ = bytes
+}
 
 func main() {
 	// Define addresses
@@ -72,7 +90,7 @@ func main() {
 
 	})
 	// Start the server
-	fmt.Printf("Starting proxy server on %s\n", sourceAddr)
-	fmt.Printf("- Forwarding /api/* requests to %s\n", leaderAddr)
+	log.Printf("Starting proxy server on %s\n", sourceAddr)
+	log.Printf("- Forwarding /api/* requests to %s\n", leaderAddr)
 	log.Fatal(http.ListenAndServe(sourceAddr, nil))
 }
