@@ -3,7 +3,6 @@ package main
 import (
 	"fmt"
 	"log"
-	"net"
 	"net/http"
 
 	types "github.com/wasif9/p2p-file-share/pkg/models"
@@ -13,25 +12,9 @@ import (
 )
 
 var err error
-var node types.Node
-var nodeArr = [10]types.Node{}
-var leaderIndex = 10
 
 func main() {
-	log.SetFlags(log.LstdFlags | log.Lshortfile)
-	// Configure node array
-	// TODO: Move this over to the proxy
-	node.IP, node.Port, node.Index, node.Status = "localhost", "8083", 0, "follower"
-	nodeArr[0] = node
-	node.IP, node.Port, node.Index, node.Status = "localhost", "8081", 1, "follower"
-	nodeArr[1] = node
-	node.IP, node.Port, node.Index, node.Status = "localhost", "8082", 2, "follower"
-	nodeArr[2] = node
-
-	node.IP, node.Port, node.Index, node.Status = "localhost", cfg.Port, cfg.Index, "follower"
 	// Call election to determine if there needs to be a new leader.
-	election()
-
 	go monitorLeader()
 
 	// Connection to the database
@@ -57,10 +40,10 @@ func main() {
 	http.HandleFunc("/api/"+cfg.Version+"/kill", killHandler)
 	http.HandleFunc("/api/"+cfg.Version+"/heartbeat", heartbeatHandler)
 	http.HandleFunc("/api/"+cfg.Version+"/election/", electionHandler)
-	http.HandleFunc("/api/"+cfg.Version+"/leader", leaderHandler())
+	http.HandleFunc("/api/"+cfg.Version+"/leader", leaderHandler)
 
-	log.Printf("Server starting on port %s...\n", cfg.Port)
-	err = http.ListenAndServe(net.JoinHostPort("0.0.0.0", cfg.Port), nil)
+	log.Printf("Node %d serving on %s...\n", cfg.Index, cfg.Address)
+	err = http.ListenAndServe(cfg.Address, nil)
 	if err != nil {
 		log.Fatal(err)
 	}

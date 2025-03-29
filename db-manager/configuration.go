@@ -5,11 +5,12 @@ import (
 	"errors"
 	"log"
 	"os"
+	"strconv"
 )
 
 type Configuration struct {
+	Address     string `json:"address"`
 	Index       int    `json:"index"`
-	Port        string `json:"port"`
 	Version     string `json:"version"`
 	Pg_host     string `json:"pg-host"`
 	Pg_user     string `json:"pg-user"`
@@ -19,10 +20,13 @@ type Configuration struct {
 }
 
 var cfg Configuration
+var allConfigs []Configuration
 
 func init() {
-	if len(os.Args) < 2 {
-		log.Fatal("config file not provided")
+	log.SetFlags(log.LstdFlags | log.Lshortfile)
+
+	if len(os.Args) < 3 {
+		log.Fatal("usage: go run ./... <config-file> <node-index>")
 	}
 
 	configFilePath := os.Args[1]
@@ -31,12 +35,17 @@ func init() {
 	if err != nil {
 		log.Fatal(errors.Join(errors.New("Failed to read server configuration file"), err))
 	}
-	_ = bytes
 
-	err = json.Unmarshal(bytes, &cfg)
+	err = json.Unmarshal(bytes, &allConfigs)
 	if err != nil {
 		log.Fatal(err)
 	}
 
-	log.Printf("Loaded configuration %+v from %s\n", cfg, configFilePath)
+	i, err := strconv.Atoi(os.Args[2])
+	if err != nil {
+		log.Fatalf("2nd argument <node-index> must be int. Got: '%s'", os.Args[2])
+	}
+	cfg = allConfigs[i]
+
+	log.Printf("Loaded configuration %+v\n", cfg)
 }
