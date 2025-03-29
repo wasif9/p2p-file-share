@@ -53,8 +53,6 @@ func monitorLeader() {
 }
 
 func election() {
-	log.SetFlags(log.LstdFlags | log.Lshortfile)
-
 	log.Println("begin election")
 
 	winner := true // assume I am the biggest node index alive
