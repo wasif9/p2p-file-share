@@ -129,8 +129,48 @@ func heartbeatHandler(w http.ResponseWriter, r *http.Request) {
 		Index:       cfg.Index,
 		Uptime:      GetUptime(),
 		Utilization: rand.Int() % 100,
+		LeaderIndex: leaderIndex,
 	})
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 	}
+}
+
+// Handles http requests to the route '/election/{Index}'
+// Only defined for GET
+func electionHandler(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodGet {
+		http.Error(w, "Only GET is allowed", http.StatusMethodNotAllowed)
+		return
+	}
+	w.Header().Set("Content-Type", "application/json")
+
+	_, err := fmt.Fprint(w, "candidate")
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+	}
+
+	go election()
+}
+
+// Handles http requests to the route '/leader'
+func leaderHandler(w http.ResponseWriter, r *http.Request) {
+	w.Header().Set("Content-Type", "application/json")
+
+	if r.Method != http.MethodPost {
+		http.Error(w, "Only POST is allowed", http.StatusMethodNotAllowed)
+		return
+	}
+
+	err = json.NewDecoder(r.Body).Decode(&leaderIndex) // updates the leaderIndex
+	if err != nil {
+		http.Error(w, fmt.Sprintf("Invalid request: %s", err.Error()), http.StatusBadRequest)
+		return
+	}
+
+	log.Printf("my new leader is %d", leaderIndex)
+
+	w.WriteHeader(http.StatusOK)
+	fmt.Fprint(w, "Successfully updated leader!")
+
 }

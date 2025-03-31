@@ -4,6 +4,7 @@
 /vendor/       # Vendor dependencies
 /storage/      # Local file storage (to avoid committing uploaded/downloaded files)
 .env           # Environment variables (secrets)
+/test/
 # Executable binary files
 *.exe
 peer-app/node*

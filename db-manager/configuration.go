@@ -5,24 +5,20 @@ import (
 	"errors"
 	"log"
 	"os"
+	"strconv"
+
+	types "github.com/wasif9/p2p-file-share/pkg/models"
 )
 
-type Configuration struct {
-	Index       int    `json:"index"`
-	Port        string `json:"port"`
-	Version     string `json:"version"`
-	Pg_host     string `json:"pg-host"`
-	Pg_user     string `json:"pg-user"`
-	Pg_password string `json:"pg-password"`
-	Pg_database string `json:"pg-database"`
-	Pg_port     string `json:"pg-port"`
-}
-
-var cfg Configuration
+var cfg types.DbMgrConfig
+var allConfigs []types.DbMgrConfig
+var rpConfig types.RevProxyConfig
 
 func init() {
-	if len(os.Args) < 2 {
-		log.Fatal("config file not provided")
+	log.SetFlags(log.LstdFlags | log.Lshortfile)
+
+	if len(os.Args) < 3 {
+		log.Fatal("usage: go run ./... <config-file> <node-index>")
 	}
 
 	configFilePath := os.Args[1]
@@ -31,12 +27,21 @@ func init() {
 	if err != nil {
 		log.Fatal(errors.Join(errors.New("Failed to read server configuration file"), err))
 	}
-	_ = bytes
 
-	err = json.Unmarshal(bytes, &cfg)
+	mySuperConfig := types.SuperConfig{}
+	err = json.Unmarshal(bytes, &mySuperConfig)
 	if err != nil {
 		log.Fatal(err)
 	}
 
-	log.Printf("Loaded configuration %+v from %s\n", cfg, configFilePath)
+	allConfigs = mySuperConfig.DbManagerConfigs
+	rpConfig = mySuperConfig.RpConfig
+
+	i, err := strconv.Atoi(os.Args[2])
+	if err != nil {
+		log.Fatalf("2nd argument <node-index> must be int. Got: '%s'", os.Args[2])
+	}
+	cfg = allConfigs[i]
+
+	log.Printf("Loaded configuration %+v\n", cfg)
 }

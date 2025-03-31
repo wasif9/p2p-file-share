@@ -1,8 +1,8 @@
 # Run with 
 ```bash
-go run ./... config.json
+go run ./... config.json 0
 ```
-From inside `db-manager`
+From inside `db-manager`, where 0 is the node index. That is, the service will be started with the configuration specified in the 0th element of the config.json object.
 
 # Run with Docker
 Assuming at root directory P2P-FILE-SHARE and navigate to db-manager folder first by running 

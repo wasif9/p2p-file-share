@@ -3,7 +3,6 @@ package main
 import (
 	"fmt"
 	"log"
-	"net"
 	"net/http"
 
 	types "github.com/wasif9/p2p-file-share/pkg/models"
@@ -15,8 +14,7 @@ import (
 var err error
 
 func main() {
-	log.SetFlags(log.LstdFlags | log.Lshortfile)
-
+	// Call election to determine if there needs to be a new leader.
 	go monitorLeader()
 
 	// Connection to the database
@@ -41,10 +39,13 @@ func main() {
 	http.HandleFunc("/api/"+cfg.Version+"/manifests", createManifestsHandler(db))
 	http.HandleFunc("/api/"+cfg.Version+"/kill", killHandler)
 	http.HandleFunc("/api/"+cfg.Version+"/heartbeat", heartbeatHandler)
+	http.HandleFunc("/api/"+cfg.Version+"/election/", electionHandler)
+	http.HandleFunc("/api/"+cfg.Version+"/leader", leaderHandler)
 
-	log.Printf("Server starting on port %s...\n", cfg.Port)
-	err = http.ListenAndServe(net.JoinHostPort("0.0.0.0", cfg.Port), nil)
+	log.Printf("Node %d serving on %s...\n", cfg.Index, cfg.Address)
+	err = http.ListenAndServe(cfg.Address, nil)
 	if err != nil {
 		log.Fatal(err)
 	}
+
 }
