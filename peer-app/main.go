@@ -44,8 +44,10 @@ var (
 )
 
 func main() {
-	_ = godotenv.Load() // loads from .env by default
 	log.SetFlags(log.LstdFlags | log.Lshortfile)
+	if err := godotenv.Load(); err != nil {
+		log.Println("Peer App fail to load .env file", err)
+	}
 	ctx := context.Background()
 	flag.StringVar(&dataDir, "data-dir", "", "Directory to store peer files")
 	flag.Parse()
