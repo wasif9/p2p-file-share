@@ -7,12 +7,16 @@ import (
 	"log"
 	"net/http"
 	"os"
+	"time"
 
 	types "github.com/wasif9/p2p-file-share/pkg/models"
 )
 
 var address string
 var leaderAddr string
+var superConfiguration types.SuperConfig
+var robin = 0
+var n int
 
 func init() {
 	log.SetFlags(log.LstdFlags | log.Lshortfile)
@@ -27,21 +31,50 @@ func init() {
 		log.Fatalln("failed to read configuration file: ", err)
 	}
 
-	mySuperConfiguration := types.SuperConfig{}
-	err = json.Unmarshal(bytes, &mySuperConfiguration)
+	superConfiguration = types.SuperConfig{}
+	err = json.Unmarshal(bytes, &superConfiguration)
 	if err != nil {
 		log.Fatalln("failed to unmarshal configuration file: ", err)
 	}
 
-	address = mySuperConfiguration.RpConfig.Address
+	address = superConfiguration.RpConfig.Address
 	leaderAddr = "unset"
+
+	n = len(superConfiguration.DbManagerConfigs)
+}
+
+func nextRoundRobin() string {
+	client := &http.Client{Timeout: time.Second * 1}
+
+	for true {
+		var try string = superConfiguration.DbManagerConfigs[robin].Address
+		robin = (robin + 1) % n
+
+		log.Printf("trying %s\n", try)
+		_, err := client.Get(fmt.Sprintf("http://%s/api/v1/heartbeat", try))
+		if err == nil {
+			log.Println("worked")
+			return try
+		}
+	}
+
+	return superConfiguration.DbManagerConfigs[robin].Address
 }
 
 func main() {
 
 	http.HandleFunc("/api/", func(w http.ResponseWriter, r *http.Request) {
+
+		// choose the next target
+		var target string
+		if r.Method == http.MethodPost {
+			target = leaderAddr
+		} else {
+			target = nextRoundRobin()
+		}
+
 		// Forward request to target server
-		proxyReq, err := http.NewRequest(r.Method, "http://"+leaderAddr+r.URL.Path+"?"+r.URL.RawQuery, r.Body)
+		proxyReq, err := http.NewRequest(r.Method, "http://"+target+r.URL.Path+"?"+r.URL.RawQuery, r.Body)
 		if err != nil {
 			http.Error(w, fmt.Sprintf("Error creating proxy request: %s", err), http.StatusInternalServerError)
 			return
