@@ -131,12 +131,11 @@ func propagate(newManifest types.Manifest) int {
 		return 0
 	}
 
-	payload := bytes.NewBuffer(manifestBytes)
-
 	for i, peerConfig := range allConfigs {
 		if peerConfig == cfg {
 			continue // dont forward to self obv
 		}
+		payload := bytes.NewBuffer(manifestBytes)
 
 		resp, err := client.Post(fmt.Sprintf("http://%s/api/v1/manifests", peerConfig.Address),
 			"application/json",
@@ -154,6 +153,7 @@ func propagate(newManifest types.Manifest) int {
 			log.Printf("error response from %d, %s: %s\n", i, resp.Status, string(respBytes))
 			continue
 		}
+		log.Printf("%d acked\n", i)
 		successes += 1
 	}
 
