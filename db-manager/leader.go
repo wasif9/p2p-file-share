@@ -52,7 +52,6 @@ func monitorLeader() {
 func election() {
 	log.Println("begin election")
 
-	winner := true // assume I am the biggest node index alive
 	client := &http.Client{Timeout: time.Second * 2}
 
 	// Send Election message to other servers
@@ -78,17 +77,14 @@ func election() {
 
 		log.Printf("%d is alive!\n", peerNodeConfig.Index)
 		log.Printf("%s: %s\n", resp.Status, string(body))
-		winner = false // there is a bigger node index alive. That node will continue the process and we will head from the winner eventually
 		return
 	}
 
 	// no bigger node indeces were alive
-	if winner {
-		leaderIndex = cfg.Index
-		log.Printf("✅ I, %d am the winner\n", cfg.Index)
-		notifyFollowers()
-		notifyReverseProxy()
-	}
+	leaderIndex = cfg.Index
+	log.Printf("✅ I, %d am the winner\n", cfg.Index)
+	notifyFollowers()
+	notifyReverseProxy()
 }
 
 func notifyFollowers() {
