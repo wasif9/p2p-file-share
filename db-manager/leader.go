@@ -94,8 +94,10 @@ func election() {
 
 func notifyFollowers() {
 	log.Println("notifying followers...")
+	client := &http.Client{Timeout: time.Second * 1}
+
 	for _, peerNodeConfig := range allConfigs {
-		resp, err := http.Post(
+		resp, err := client.Post(
 			fmt.Sprintf("http://%s/api/v1/leader",
 				peerNodeConfig.Address),
 			"", bytes.NewBuffer([]byte(strconv.Itoa(cfg.Index))),
