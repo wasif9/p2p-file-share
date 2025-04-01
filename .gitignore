@@ -7,3 +7,7 @@
 /test/
 # Executable binary files
 *.exe
+peer-app/node*
+peer-app/peer-app
+
+bootstrap/.env

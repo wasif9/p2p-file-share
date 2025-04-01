@@ -3,6 +3,7 @@ module github.com/wasif9/p2p-file-share
 go 1.24.1
 
 require (
+	github.com/joho/godotenv v1.5.1
 	github.com/libp2p/go-libp2p-kad-dht v0.30.2
 	gorm.io/gorm v1.25.12
 )
