@@ -31,10 +31,10 @@ import (
 
 // UploadUI manages the directory browsing + file selection + DHT providing
 type UploadUI struct {
-	list    widget.List
-	files   []os.DirEntry
-	dirPath string
-
+	list     widget.List
+	files    []os.DirEntry
+	dirPath  string
+	errorMsg string
 	// Buttons
 	backBtn    widget.Clickable
 	fileBtns   []widget.Clickable
@@ -94,6 +94,17 @@ func (upload *UploadUI) LoadFiles() {
 // UploadLayout is the main layout method for the Upload tab
 func (upload *UploadUI) UploadLayout(gtx layout.Context, th *material.Theme) layout.Dimensions {
 	return layout.Flex{Axis: layout.Vertical, Alignment: layout.End}.Layout(gtx,
+		layout.Rigid(func(gtx layout.Context) layout.Dimensions {
+			if upload.errorMsg == "" {
+				return layout.Dimensions{}
+			}
+			return layout.Inset{Top: 10, Bottom: 10, Left: 20, Right: 20}.Layout(gtx, func(gtx layout.Context) layout.Dimensions {
+				errLabel := material.Label(th, th.TextSize, upload.errorMsg)
+				errLabel.Color = color.NRGBA{R: 255, A: 255} // Red
+				return errLabel.Layout(gtx)
+			})
+		}),
+
 		layout.Rigid(func(gtx layout.Context) layout.Dimensions {
 			return layout.Flex{Axis: layout.Horizontal}.Layout(gtx,
 				// Title label
@@ -275,9 +286,13 @@ func (upload *UploadUI) UploadFile() {
 	resp, err := http.DefaultClient.Do(req)
 	if err != nil {
 		log.Println("Error sending POST request:", err)
+		upload.errorMsg = "Upload failed. Backend unreachable."
 		return
 	}
 	defer resp.Body.Close()
+
+	// Reset errorMsg on success
+	upload.errorMsg = ""
 
 	respSer, err := io.ReadAll(resp.Body)
 	if err != nil {
