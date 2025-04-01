@@ -6,7 +6,7 @@ type Manifest struct {
 	Name      string `gorm:"primaryKey" json:"name"`
 	Hash      string `json:"hash"`
 	Size      int64  `json:"size"`
-	Timestamp uint   `json:"timestamp"`
+	Timestamp uint   `gorm:"unique" json:"timestamp"`
 }
 
 type Heartbeat struct {
