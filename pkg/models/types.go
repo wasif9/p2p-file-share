@@ -3,9 +3,10 @@ package types
 import "time"
 
 type Manifest struct {
-	Name string `gorm:"primaryKey" json:"name"`
-	Hash string `json:"hash"`
-	Size int64  `json:"size"`
+	Name      string `gorm:"primaryKey" json:"name"`
+	Hash      string `json:"hash"`
+	Size      int64  `json:"size"`
+	Timestamp uint   `gorm:"unique" json:"timestamp"`
 }
 
 type Heartbeat struct {
@@ -13,6 +14,7 @@ type Heartbeat struct {
 	Uptime      time.Duration `json:"uptime"`
 	Utilization int           `json:"utilization"`
 	LeaderIndex int           `json:"leader-index"`
+	Timestamp   uint          `json:"timestamp"`
 }
 
 type DbMgrConfig struct {

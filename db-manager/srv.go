@@ -75,6 +75,8 @@ func createManifestsHandler(db *gorm.DB) func(w http.ResponseWriter, r *http.Req
 				http.Error(w, fmt.Sprintf("Invalid request: %s", err.Error()), http.StatusBadRequest)
 				return
 			}
+			timestamp += 1 // TODO: should i do this before or after propagating?
+			newManifest.Timestamp = timestamp
 
 			createdManifest, err := insertManifest(db, &newManifest)
 			if err != nil {
@@ -177,6 +179,7 @@ func heartbeatHandler(w http.ResponseWriter, r *http.Request) {
 		Uptime:      GetUptime(),
 		Utilization: rand.Int() % 100,
 		LeaderIndex: leaderIndex,
+		Timestamp:   timestamp,
 	})
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
