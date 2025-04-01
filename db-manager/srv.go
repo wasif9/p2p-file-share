@@ -1,8 +1,10 @@
 package main
 
 import (
+	"bytes"
 	"encoding/json"
 	"fmt"
+	"io"
 	"log"
 	"math/rand"
 	"net/http"
@@ -86,6 +88,12 @@ func createManifestsHandler(db *gorm.DB) func(w http.ResponseWriter, r *http.Req
 				http.Error(w, err.Error(), http.StatusInternalServerError)
 				return
 			}
+
+			if leaderIndex == cfg.Index {
+				log.Println("propagating write to followers...")
+				copies := propagate(newManifest)
+				log.Printf("%d followers acked", copies)
+			}
 		case http.MethodGet: // returns all manifests
 			var manifests []types.Manifest
 
@@ -111,6 +119,45 @@ func createManifestsHandler(db *gorm.DB) func(w http.ResponseWriter, r *http.Req
 		}
 	}
 	return manifestsHandler
+}
+
+func propagate(newManifest types.Manifest) int {
+	client := &http.Client{Timeout: time.Second * 1}
+	successes := 0
+
+	manifestBytes, err := json.Marshal(newManifest)
+	if err != nil {
+		log.Println(err)
+		return 0
+	}
+
+	payload := bytes.NewBuffer(manifestBytes)
+
+	for i, peerConfig := range allConfigs {
+		if peerConfig == cfg {
+			continue // dont forward to self obv
+		}
+
+		resp, err := client.Post(fmt.Sprintf("http://%s/api/v1/manifests", peerConfig.Address),
+			"application/json",
+			payload)
+		if err != nil {
+			log.Printf("error forwarding request to %d, %s\n", i, err)
+			continue
+		}
+		respBytes, err := io.ReadAll(resp.Body)
+		if err != nil {
+			log.Printf("error reading response from %d: %s", i, err)
+			continue
+		}
+		if resp.StatusCode != http.StatusCreated {
+			log.Printf("error response from %d, %s: %s\n", i, resp.Status, string(respBytes))
+			continue
+		}
+		successes += 1
+	}
+
+	return successes
 }
 
 func killHandler(w http.ResponseWriter, r *http.Request) {
