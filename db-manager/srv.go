@@ -179,6 +179,7 @@ func heartbeatHandler(w http.ResponseWriter, r *http.Request) {
 		Uptime:      GetUptime(),
 		Utilization: rand.Int() % 100,
 		LeaderIndex: leaderIndex,
+		Timestamp:   timestamp,
 	})
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)

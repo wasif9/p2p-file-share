@@ -14,6 +14,7 @@ type Heartbeat struct {
 	Uptime      time.Duration `json:"uptime"`
 	Utilization int           `json:"utilization"`
 	LeaderIndex int           `json:"leader-index"`
+	Timestamp   uint          `json:"timestamp"`
 }
 
 type DbMgrConfig struct {

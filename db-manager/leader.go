@@ -44,8 +44,7 @@ func monitorLeader() {
 		if err != nil {
 			log.Fatal(err)
 		}
-
-		log.Printf("leader %d uptime: %v\n", heartbeat.Index, heartbeat.Uptime)
+		log.Printf("leader %d timestamp: %v\n", heartbeat.Index, heartbeat.Timestamp)
 	}
 
 }
