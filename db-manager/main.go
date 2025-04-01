@@ -12,6 +12,7 @@ import (
 )
 
 var err error
+var timestamp uint = 0
 
 func main() {
 	// Call election to determine if there needs to be a new leader.
@@ -34,6 +35,18 @@ func main() {
 	if err != nil {
 		log.Fatal(err)
 	}
+
+	// query for the largest entry in the timestamp column of the manifest table
+	// first upsert a row with timestamp 0
+	err = db.Exec("INSERT INTO manifests (name, hash, size, timestamp) VALUES ('', '', 0, 0) ON CONFLICT DO NOTHING").Error
+	if err != nil {
+		log.Fatal(err)
+	}
+	err = db.Model(&types.Manifest{}).Select("max(timestamp)").Scan(&timestamp).Error
+	if err != nil {
+		log.Fatal(err)
+	}
+	log.Printf("Max timestamp: %d\n", timestamp)
 
 	http.HandleFunc("/api/"+cfg.Version+"/manifests/", createManifestHandler(db))
 	http.HandleFunc("/api/"+cfg.Version+"/manifests", createManifestsHandler(db))
