@@ -33,7 +33,7 @@ const (
 	ProgressTab
 )
 const (
-	LoadBalancerAdr = "http://172.20.10.3:7777"
+	LoadBalancerAdr = "http://172.20.10.6:7777"
 	DBManagerVer    = "v1"
 	protocol        = "/file-sharing/1.0.0"
 )
