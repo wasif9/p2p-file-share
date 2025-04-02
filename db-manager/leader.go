@@ -143,7 +143,7 @@ func election() {
 	highestTimestamp := timestamp
 	highestIndex := cfg.Index
 	for nodeIndex, timestamp := range timestamps {
-		if timestamp > highestTimestamp { // since this is >=, ties will be broken by the node index (higher index wins)
+		if timestamp > highestTimestamp { // since this is >, ties will be broken by the node index (lower index wins)
 			highestTimestamp = timestamp
 			highestIndex = nodeIndex
 		}
