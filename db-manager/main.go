@@ -54,6 +54,7 @@ func main() {
 	http.HandleFunc("/api/"+cfg.Version+"/heartbeat", heartbeatHandler)
 	http.HandleFunc("/api/"+cfg.Version+"/election/", electionHandler)
 	http.HandleFunc("/api/"+cfg.Version+"/leader", leaderHandler)
+	http.HandleFunc("/api/"+cfg.Version+"/catchup", createCatchupHandler(db))
 
 	log.Printf("Node %d serving on %s...\n", cfg.Index, cfg.Address)
 	err = http.ListenAndServe(cfg.Address, nil)
