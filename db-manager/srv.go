@@ -94,7 +94,7 @@ func createManifestsHandler(db *gorm.DB) func(w http.ResponseWriter, r *http.Req
 			createdManifest, err := insertManifest(db, &newManifest)
 			if err != nil {
 				http.Error(w, err.Error(), http.StatusInternalServerError)
-				timestamp -= 1 // rollback
+				timestamp -= 1 // rollback for failed insertions
 				return
 			}
 
