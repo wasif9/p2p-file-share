@@ -23,15 +23,6 @@
     },
     {
       "index": 2,
-      "address": "10.0.0.215:8082",
-      "version": "v1",
-      "pg-host": "localhost",
-      "pg-user": "postgres",
-      "pg-password": "password",
-      "pg-port": "5432"
-    },
-    {
-      "index": 3,
       "address": "10.0.0.69:8083",
       "version": "v1",
       "pg-host": "localhost",
