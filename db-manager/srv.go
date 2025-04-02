@@ -9,6 +9,7 @@ import (
 	"math/rand"
 	"net/http"
 	"os"
+	"strconv"
 	"strings"
 	"time"
 
@@ -232,4 +233,49 @@ func leaderHandler(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusOK)
 	fmt.Fprint(w, "Successfully updated leader!")
 
+}
+
+func createCatchupHandler(db *gorm.DB) func(w http.ResponseWriter, r *http.Request) {
+	return func(w http.ResponseWriter, r *http.Request) {
+		if r.Method != http.MethodPost {
+			http.Error(w, "Only POST is allowed", http.StatusMethodNotAllowed)
+			return
+		}
+		requesterTimestampString := r.URL.Query().Get("timestamp")
+		if requesterTimestampString == "" {
+			http.Error(w, "Missing timestamp query parameter", http.StatusBadRequest)
+			return
+		}
+		requesterTimestamp, err := strconv.Atoi(requesterTimestampString)
+		if err != nil {
+			http.Error(w, fmt.Sprintf("Invalid timestamp: %s", err.Error()), http.StatusBadRequest)
+			return
+		}
+
+		// read the requester's index from the body
+		var requesterIndex int
+		err = json.NewDecoder(r.Body).Decode(&requesterIndex)
+		if err != nil {
+			http.Error(w, fmt.Sprintf("Invalid request: %s", err.Error()), http.StatusBadRequest)
+			return
+		}
+		log.Printf("%d is at timestamp %d, catching up to %d\n", requesterIndex, requesterTimestamp, timestamp)
+
+		// query the database for all manifests with a timestamp greater than the requester's
+		var manifests []types.Manifest
+		err = db.Where("timestamp > ?", requesterTimestamp).Find(&manifests).Error
+		if err != nil {
+			http.Error(w, fmt.Sprintf("Invalid request: %s", err.Error()), http.StatusBadRequest)
+			return
+		}
+
+		// send the manifests back to the requester
+		w.Header().Set("Content-Type", "application/json")
+		err = json.NewEncoder(w).Encode(manifests)
+		if err != nil {
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+			return
+		}
+		log.Printf("sent %d manifests to %d\n", len(manifests), requesterIndex)
+	}
 }
