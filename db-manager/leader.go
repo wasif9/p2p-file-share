@@ -45,8 +45,34 @@ func monitorLeader() {
 			log.Fatal(err)
 		}
 		log.Printf("leader %d timestamp: %v\n", heartbeat.Index, heartbeat.Timestamp)
-	}
 
+		if heartbeat.Timestamp > timestamp {
+			log.Printf("leader heartbeat is newer than mine (%v > %v)\n", heartbeat.Timestamp, timestamp)
+			catchup(heartbeat.Timestamp)
+		}
+	}
+}
+
+func catchup(leaderTimestamp uint) {
+	log.Println("catching up to leader...")
+	client := &http.Client{Timeout: time.Second * 2}
+
+	resp, err := client.Post(
+		fmt.Sprintf("http://%s/api/v1/catchup?timestamp=%d", allConfigs[leaderIndex].Address, leaderTimestamp),
+		"", bytes.NewBuffer([]byte(strconv.Itoa(cfg.Index))),
+	)
+	if err != nil {
+		log.Printf("failed to contact leader %d: %s", leaderIndex, err)
+		return
+	}
+	respBytes, err := io.ReadAll(resp.Body)
+	if err != nil {
+		log.Fatal(err)
+	}
+	if resp.StatusCode != http.StatusOK {
+		log.Printf("unexpected response from leader %d: %s: %s\n", leaderIndex, resp.Status, string(respBytes))
+		return
+	}
 }
 
 func election() {
