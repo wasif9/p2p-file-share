@@ -14,7 +14,7 @@
     },
     {
       "index": 1,
-      "address": "172.20.10.4:8080",
+      "address": "172.20.10.4:8081",
       "version": "v1",
       "pg-host": "localhost",
       "pg-user": "postgres",
