@@ -54,40 +54,53 @@ func election() {
 
 	client := &http.Client{Timeout: time.Second * 2}
 
-	// Send Election message to other servers
-	for i, peerNodeConfig := range allConfigs {
-		if peerNodeConfig.Index <= cfg.Index {
-			continue
-		}
+	timestamps := make([]uint, len(allConfigs))
 
-		// contact all nodes with higher index
-		log.Printf("checking if %d is alive...\n", i)
-		resp, err := client.Get(fmt.Sprintf("http://%s/api/v1/election/%d",
-			peerNodeConfig.Address, cfg.Index))
+	// poll everyone for their heartbeat to get the latest timestamp
+	for _, peerNodeConfig := range allConfigs {
+		resp, err := client.Get(fmt.Sprintf("http://%s/api/v1/heartbeat", peerNodeConfig.Address))
 		if err != nil {
-			log.Printf("↳ No response from %d: %s\n", peerNodeConfig.Index, err)
+			log.Printf("failed to contact %d: %s", peerNodeConfig.Index, err)
 			continue
 		}
-		defer resp.Body.Close()
-
-		body, err := io.ReadAll(resp.Body)
+		respBytes, err := io.ReadAll(resp.Body)
 		if err != nil {
 			log.Fatal(err)
 		}
-
-		log.Printf("%d is alive!\n", peerNodeConfig.Index)
-		log.Printf("%s: %s\n", resp.Status, string(body))
-		return
+		if resp.StatusCode != http.StatusOK {
+			log.Printf("unexpected response from %d: %s: %s\n", peerNodeConfig.Index, resp.Status, string(respBytes))
+			continue
+		}
+		var heartbeat types.Heartbeat
+		err = json.Unmarshal(respBytes, &heartbeat)
+		if err != nil {
+			log.Fatal(err)
+		}
+		log.Printf("node %d heartbeat: %v\n", heartbeat.Index, heartbeat.Timestamp)
+		timestamps[heartbeat.Index] = heartbeat.Timestamp
 	}
 
-	// no bigger node indeces were alive
-	leaderIndex = cfg.Index
-	log.Printf("✅ I, %d am the winner\n", cfg.Index)
-	notifyFollowers()
-	notifyReverseProxy()
+	// find the node with the highest timestamp
+	highestTimestamp := uint(0)
+	highestIndex := -1
+	for nodeIndex, timestamp := range timestamps {
+		if timestamp >= highestTimestamp { // since this is >=, ties will be broken by the node index (higher index wins)
+			highestTimestamp = timestamp
+			highestIndex = nodeIndex
+		}
+	}
+	if highestIndex == -1 {
+		log.Fatal("no nodes found")
+	}
+	log.Printf("node %d has the highest timestamp: %v\n", highestIndex, highestTimestamp)
+	leaderIndex = highestIndex
+	log.Printf("new leader is %d\n", leaderIndex)
+
+	notifyFollowers(leaderIndex)
+	notifyReverseProxy(leaderIndex)
 }
 
-func notifyFollowers() {
+func notifyFollowers(leaderIndex int) {
 	log.Println("notifying followers...")
 	client := &http.Client{Timeout: time.Second * 1}
 
@@ -95,7 +108,7 @@ func notifyFollowers() {
 		resp, err := client.Post(
 			fmt.Sprintf("http://%s/api/v1/leader",
 				peerNodeConfig.Address),
-			"", bytes.NewBuffer([]byte(strconv.Itoa(cfg.Index))),
+			"", bytes.NewBuffer([]byte(strconv.Itoa(leaderIndex))),
 		)
 		if err != nil {
 			log.Printf("notification message to %d failed: %s", peerNodeConfig.Index, err)
@@ -115,8 +128,9 @@ func notifyFollowers() {
 	}
 }
 
-func notifyReverseProxy() {
-	resp, err := http.Post(fmt.Sprintf("http://%s/leader?address=%s", rpConfig.Address, cfg.Address), "", nil)
+func notifyReverseProxy(leaderIndex int) {
+	resp, err := http.Post(fmt.Sprintf("http://%s/leader?address=%s",
+		rpConfig.Address, allConfigs[leaderIndex].Address), "", nil)
 	if err != nil {
 		log.Fatal("failed to contact reverse-proxy: ", err)
 	}
