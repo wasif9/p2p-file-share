@@ -88,12 +88,13 @@ func createManifestsHandler(db *gorm.DB) func(w http.ResponseWriter, r *http.Req
 				}
 			}
 
-			timestamp += 1 // TODO: should i do this before or after propagating?
+			timestamp += 1
 			newManifest.Timestamp = timestamp
 
 			createdManifest, err := insertManifest(db, &newManifest)
 			if err != nil {
 				http.Error(w, err.Error(), http.StatusInternalServerError)
+				timestamp -= 1 // rollback
 				return
 			}
 
