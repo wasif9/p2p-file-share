@@ -75,6 +75,19 @@ func createManifestsHandler(db *gorm.DB) func(w http.ResponseWriter, r *http.Req
 				http.Error(w, fmt.Sprintf("Invalid request: %s", err.Error()), http.StatusBadRequest)
 				return
 			}
+
+			if leaderIndex == cfg.Index {
+				log.Println("propagating write to followers...")
+				copies := propagate(newManifest)
+				followerCount := len(allConfigs) - 1 // -1 for self
+				log.Printf("%d/%d followers acked, expecting %d/%d writes including self", copies, followerCount, copies+1, followerCount+1)
+				if (copies + 1) <= (followerCount+1)/2.0 { // majority
+					log.Println("failed to get majority ack")
+					http.Error(w, "failed to get majority ack", http.StatusInternalServerError)
+					return
+				}
+			}
+
 			timestamp += 1 // TODO: should i do this before or after propagating?
 			newManifest.Timestamp = timestamp
 
@@ -91,11 +104,6 @@ func createManifestsHandler(db *gorm.DB) func(w http.ResponseWriter, r *http.Req
 				return
 			}
 
-			if leaderIndex == cfg.Index {
-				log.Println("propagating write to followers...")
-				copies := propagate(newManifest)
-				log.Printf("%d followers acked", copies)
-			}
 		case http.MethodGet: // returns all manifests
 			var manifests []types.Manifest
 
