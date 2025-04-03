@@ -45,6 +45,65 @@ func monitorLeader() {
 			log.Fatal(err)
 		}
 		log.Printf("leader %d timestamp: %v\n", heartbeat.Index, heartbeat.Timestamp)
+
+		if heartbeat.Timestamp > timestamp {
+			log.Printf("leader heartbeat is newer than mine (%v > %v)\n", heartbeat.Timestamp, timestamp)
+			catchup(heartbeat.Timestamp)
+		}
+	}
+}
+
+func catchup(leaderTimestamp uint) {
+	log.Println("catching up to leader...")
+	client := &http.Client{Timeout: time.Second * 2}
+
+	resp, err := client.Post(
+		fmt.Sprintf("http://%s/api/v1/catchup?timestamp=%d", allConfigs[leaderIndex].Address, timestamp),
+		"", bytes.NewBuffer([]byte(strconv.Itoa(cfg.Index))),
+	)
+	if err != nil {
+		log.Printf("failed to contact leader %d: %s", leaderIndex, err)
+		return
+	}
+	respBytes, err := io.ReadAll(resp.Body)
+	if err != nil {
+		log.Fatal(err)
+	}
+	if resp.StatusCode != http.StatusOK {
+		log.Printf("unexpected response from leader %d: %s: %s\n", leaderIndex, resp.Status, string(respBytes))
+		return
+	}
+	var manifests []types.Manifest
+	err = json.Unmarshal(respBytes, &manifests)
+	if err != nil {
+		log.Fatal(err)
+	}
+	log.Printf("got %d manifests from leader %d\n", len(manifests), leaderIndex)
+	for _, manifest := range manifests {
+		// post all to self
+		manifestBytes, err := json.Marshal(manifest)
+		if err != nil {
+			log.Println(err)
+			continue
+		}
+		payload := bytes.NewBuffer(manifestBytes)
+		resp, err := client.Post(fmt.Sprintf("http://%s/api/v1/manifests", cfg.Address),
+			"application/json",
+			payload)
+		if err != nil {
+			log.Printf("error forwarding request to self, %s\n", err)
+			continue
+		}
+		respBytes, err := io.ReadAll(resp.Body)
+		if err != nil {
+			log.Printf("error reading response from self: %s", err)
+			continue
+		}
+		if resp.StatusCode != http.StatusCreated {
+			log.Printf("error response from self, %s: %s\n", resp.Status, string(respBytes))
+			continue
+		}
+		log.Printf("self acked\n")
 	}
 
 }
@@ -76,15 +135,15 @@ func election() {
 		if err != nil {
 			log.Fatal(err)
 		}
-		log.Printf("node %d heartbeat: %v\n", heartbeat.Index, heartbeat.Timestamp)
+		log.Printf("node %d timestamp: %v\n", heartbeat.Index, heartbeat.Timestamp)
 		timestamps[heartbeat.Index] = heartbeat.Timestamp
 	}
 
 	// find the node with the highest timestamp
-	highestTimestamp := uint(0)
-	highestIndex := -1
+	highestTimestamp := timestamp
+	highestIndex := cfg.Index
 	for nodeIndex, timestamp := range timestamps {
-		if timestamp >= highestTimestamp { // since this is >=, ties will be broken by the node index (higher index wins)
+		if timestamp > highestTimestamp { // since this is >, ties will be broken by the node index (lower index wins)
 			highestTimestamp = timestamp
 			highestIndex = nodeIndex
 		}
