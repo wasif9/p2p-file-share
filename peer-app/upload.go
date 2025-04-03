@@ -274,9 +274,9 @@ func (upload *UploadUI) UploadFile() {
 
 	// 6) POST manifest JSON to load balancer
 	postReq := "/api/" + DBManagerVer + "/manifests"
-	log.Println("Sending POST", postReq, "to", LoadBalancerAdr)
+	log.Println("Sending POST", postReq, "to", reverseProxyAddr)
 
-	req, err := http.NewRequest("POST", LoadBalancerAdr+postReq, bytes.NewBuffer(jsonData))
+	req, err := http.NewRequest("POST", "http://"+reverseProxyAddr+postReq, bytes.NewBuffer(jsonData))
 	if err != nil {
 		log.Println("Error creating POST request:", err)
 		return

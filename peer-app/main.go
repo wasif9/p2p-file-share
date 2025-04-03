@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"encoding/json"
 	"flag"
 	"fmt"
 	"image/color"
@@ -25,6 +26,7 @@ import (
 	"github.com/libp2p/go-libp2p/core/network"
 	"github.com/libp2p/go-libp2p/core/peer"
 	"github.com/multiformats/go-multiaddr"
+	types "github.com/wasif9/p2p-file-share/pkg/models"
 )
 
 const (
@@ -33,18 +35,37 @@ const (
 	ProgressTab
 )
 const (
-	LoadBalancerAdr = "http://172.20.10.6:7777"
-	DBManagerVer    = "v1"
-	protocol        = "/file-sharing/1.0.0"
+	DBManagerVer = "v1"
+	protocol     = "/file-sharing/1.0.0"
 )
 
 var (
-	tabSelected = DownloadTab
-	dataDir     string
+	tabSelected      = DownloadTab
+	dataDir          string
+	reverseProxyAddr string
 )
 
-func main() {
+func init() {
 	log.SetFlags(log.LstdFlags | log.Lshortfile)
+
+	if len(os.Args) < 2 {
+		log.Fatalln("usage: go run ./... <superconfig-file>")
+	}
+	superConfigBytes, err := os.ReadFile(os.Args[1])
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	superConfig := types.SuperConfig{}
+	err = json.Unmarshal(superConfigBytes, &superConfig)
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	reverseProxyAddr = superConfig.RpConfig.Address
+}
+
+func main() {
 	if err := godotenv.Load(); err != nil {
 		log.Println("Peer App fail to load .env file", err)
 	}
