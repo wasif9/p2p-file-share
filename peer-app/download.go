@@ -194,10 +194,10 @@ func (ui *DownloadUI) PerformSearch() {
 
 	// Make GET request to the load balancer server
 	getReq := "/api/" + DBManagerVer + "/manifests?prefix=" + query
-	log.Println("Send GET " + getReq + " to " + LoadBalancerAdr)
+	log.Println("Send GET " + getReq + " to " + reverseProxyAddr)
 
 	// Send GET requet
-	resp, err := http.Get(LoadBalancerAdr + getReq)
+	resp, err := http.Get("http://" + reverseProxyAddr + getReq)
 	if err != nil {
 		log.Println("Error when sending search query request", err)
 		return
@@ -245,10 +245,10 @@ func (ui *DownloadUI) Download(prgUI *ProgressUI) {
 
 		// Make GET request to the load balancer server
 		getReq := "/api/" + DBManagerVer + "/manifests/" + fileName
-		log.Println("Send GET " + getReq + " to " + LoadBalancerAdr)
+		log.Println("Send GET " + getReq + " to " + reverseProxyAddr)
 
 		// Send GET requet
-		resp, err := http.Get(LoadBalancerAdr + getReq)
+		resp, err := http.Get("http://" + reverseProxyAddr + getReq)
 		if err != nil {
 			log.Println("Error:", err)
 			return
