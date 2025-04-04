@@ -1,6 +1,8 @@
 package main
 
 import (
+	"errors"
+
 	types "github.com/wasif9/p2p-file-share/pkg/models"
 	"gorm.io/gorm"
 )
@@ -14,7 +16,12 @@ import (
 * 		None
 *
 ************************/
-func insertManifest(db *gorm.DB, manifest *types.Manifest) (newManifest types.Manifest, Error error) {
+func insertManifest(db *gorm.DB, manifest *types.Manifest) (types.Manifest, error) {
+	found, err := querySingleManifest(db, manifest.Name)
+
+	if err == nil && found.Name == manifest.Name {
+		return types.Manifest{}, errors.New("manifest already exists in the DB")
+	}
 
 	result := db.Create(&manifest)
 
@@ -31,7 +38,7 @@ func insertManifest(db *gorm.DB, manifest *types.Manifest) (newManifest types.Ma
 * 		None
 *
 ************************/
-func deleteManifest(db *gorm.DB, filename string) (Error error) {
+func deleteManifest(db *gorm.DB, filename string) error {
 
 	result := db.Where("name = ?", filename).Delete(&types.Manifest{})
 
