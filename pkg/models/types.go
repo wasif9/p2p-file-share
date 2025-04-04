@@ -1,12 +1,18 @@
 package types
 
-import "time"
+import (
+	"time"
+
+	"gorm.io/gorm"
+)
 
 type Manifest struct {
-	Name      string `gorm:"primaryKey" json:"name"`
-	Hash      string `json:"hash"`
-	Size      int64  `json:"size"`
-	Timestamp uint   `gorm:"unique" json:"timestamp"`
+	Timestamp uint           `gorm:"primarykey"`
+	DeletedAt gorm.DeletedAt `gorm:"index"`
+
+	Name string `gorm:"unique" json:"name"`
+	Hash string `json:"hash"`
+	Size int64  `json:"size"`
 }
 
 type Heartbeat struct {
