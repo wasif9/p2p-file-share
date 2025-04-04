@@ -30,8 +30,8 @@ func GetUptime() time.Duration {
 
 // Handles http requests to the route '/manifests/{name}'
 // Only defined for GET and DELETE
-func createManifestHandler(db *gorm.DB) func(w http.ResponseWriter, r *http.Request) {
-	manifestHandler := func(w http.ResponseWriter, r *http.Request) {
+func manifestHandler(db *gorm.DB) func(w http.ResponseWriter, r *http.Request) {
+	return func(w http.ResponseWriter, r *http.Request) {
 
 		w.Header().Set("Content-Type", "application/json")
 		name := strings.TrimPrefix(r.URL.Path, "/api/"+cfg.Version+"/manifests/")
@@ -57,14 +57,12 @@ func createManifestHandler(db *gorm.DB) func(w http.ResponseWriter, r *http.Requ
 		}
 
 	}
-
-	return manifestHandler
 }
 
 // Handles http requests to the route '/manifests'
 // Only defined for POST
-func createManifestsHandler(db *gorm.DB) func(w http.ResponseWriter, r *http.Request) {
-	manifestsHandler := func(w http.ResponseWriter, r *http.Request) {
+func manifestsHandler(db *gorm.DB) func(w http.ResponseWriter, r *http.Request) {
+	return func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
 
 		switch r.Method {
@@ -89,13 +87,9 @@ func createManifestsHandler(db *gorm.DB) func(w http.ResponseWriter, r *http.Req
 				}
 			}
 
-			timestamp += 1
-			newManifest.Timestamp = timestamp
-
 			createdManifest, err := insertManifest(db, &newManifest)
 			if err != nil {
 				http.Error(w, err.Error(), http.StatusInternalServerError)
-				timestamp -= 1 // rollback for failed insertions
 				return
 			}
 
@@ -130,7 +124,6 @@ func createManifestsHandler(db *gorm.DB) func(w http.ResponseWriter, r *http.Req
 			http.Error(w, fmt.Sprintf("Method %s not allowed.", r.Method), http.StatusMethodNotAllowed)
 		}
 	}
-	return manifestsHandler
 }
 
 func propagate(newManifest types.Manifest) int {
@@ -177,22 +170,24 @@ func killHandler(w http.ResponseWriter, r *http.Request) {
 	os.Exit(0)
 }
 
-func heartbeatHandler(w http.ResponseWriter, r *http.Request) {
-	if r.Method != http.MethodGet {
-		http.Error(w, "Only GET is allowed", http.StatusMethodNotAllowed)
-		return
-	}
+func heartbeatHandler(db *gorm.DB) func(http.ResponseWriter, *http.Request) {
+	return func(w http.ResponseWriter, r *http.Request) {
+		if r.Method != http.MethodGet {
+			http.Error(w, "Only GET is allowed", http.StatusMethodNotAllowed)
+			return
+		}
 
-	w.Header().Set("Content-Type", "application/json")
-	err := json.NewEncoder(w).Encode(&types.Heartbeat{
-		Index:       cfg.Index,
-		Uptime:      GetUptime(),
-		Utilization: rand.Int() % 100,
-		LeaderIndex: leaderIndex,
-		Timestamp:   timestamp,
-	})
-	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
+		w.Header().Set("Content-Type", "application/json")
+		err := json.NewEncoder(w).Encode(&types.Heartbeat{
+			Index:       cfg.Index,
+			Uptime:      GetUptime(),
+			Utilization: rand.Int() % 100,
+			LeaderIndex: leaderIndex,
+			Timestamp:   getTimestamp(db),
+		})
+		if err != nil {
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+		}
 	}
 }
 
@@ -235,7 +230,7 @@ func leaderHandler(w http.ResponseWriter, r *http.Request) {
 
 }
 
-func createCatchupHandler(db *gorm.DB) func(w http.ResponseWriter, r *http.Request) {
+func catchupHandler(db *gorm.DB) func(http.ResponseWriter, *http.Request) {
 	return func(w http.ResponseWriter, r *http.Request) {
 		if r.Method != http.MethodPost {
 			http.Error(w, "Only POST is allowed", http.StatusMethodNotAllowed)
@@ -251,6 +246,9 @@ func createCatchupHandler(db *gorm.DB) func(w http.ResponseWriter, r *http.Reque
 			http.Error(w, fmt.Sprintf("Invalid timestamp: %s", err.Error()), http.StatusBadRequest)
 			return
 		}
+
+		// get own timestamp
+		timestamp := getTimestamp(db)
 
 		// read the requester's index from the body
 		var requesterIndex int
