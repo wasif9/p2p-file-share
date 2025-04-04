@@ -6,7 +6,6 @@ import (
 	"fmt"
 	"io"
 	"log"
-	"math/rand"
 	"net/http"
 	"os"
 	"strconv"
@@ -181,7 +180,6 @@ func heartbeatHandler(db *gorm.DB) func(http.ResponseWriter, *http.Request) {
 		err := json.NewEncoder(w).Encode(&types.Heartbeat{
 			Index:       cfg.Index,
 			Uptime:      GetUptime(),
-			Utilization: rand.Int() % 100,
 			LeaderIndex: leaderIndex,
 			Timestamp:   getTimestamp(db),
 		})
