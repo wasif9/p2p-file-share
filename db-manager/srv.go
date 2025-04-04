@@ -30,7 +30,7 @@ func GetUptime() time.Duration {
 
 // Handles http requests to the route '/manifests/{name}'
 // Only defined for GET and DELETE
-func manifestHandler(db *gorm.DB) func(w http.ResponseWriter, r *http.Request) {
+func manifestHandler(db *gorm.DB) func(http.ResponseWriter, *http.Request) {
 	return func(w http.ResponseWriter, r *http.Request) {
 
 		w.Header().Set("Content-Type", "application/json")
@@ -61,7 +61,7 @@ func manifestHandler(db *gorm.DB) func(w http.ResponseWriter, r *http.Request) {
 
 // Handles http requests to the route '/manifests'
 // Only defined for POST
-func manifestsHandler(db *gorm.DB) func(w http.ResponseWriter, r *http.Request) {
+func manifestsHandler(db *gorm.DB) func(http.ResponseWriter, *http.Request) {
 	return func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
 
