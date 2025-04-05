@@ -42,18 +42,29 @@ type DownloadUI struct {
 
 func (ui *DownloadUI) DownloadLayout(gtx layout.Context, th *material.Theme, prgUI *ProgressUI) layout.Dimensions {
 	return layout.Flex{Axis: layout.Vertical}.Layout(gtx,
+		// Title label
+		layout.Rigid(func(gtx layout.Context) layout.Dimensions {
+			return layout.Flex{Axis: layout.Horizontal}.Layout(gtx,
+				layout.Flexed(1, func(gtx layout.Context) layout.Dimensions {
+					return layout.Center.Layout(gtx, func(gtx layout.Context) layout.Dimensions {
+						// Padding
+						inset := layout.Inset{Top: 10, Bottom: 10}
+						return inset.Layout(gtx, func(gtx layout.Context) layout.Dimensions {
+							text := material.Body1(th, "P2P File Lookup")
+							text.TextSize = unit.Sp(20)
+							return text.Layout(gtx)
+						})
+					})
+				}),
+			)
+		}),
 		// Upper part for text search
 		layout.Rigid(func(gtx layout.Context) layout.Dimensions {
 			return layout.Flex{Axis: layout.Horizontal}.Layout(gtx,
 				// Text bar
 				layout.Flexed(1, func(gtx layout.Context) layout.Dimensions {
 					// Padding
-					inset := layout.Inset{
-						Top:   10,
-						Right: 20,
-						Left:  20,
-					}
-
+					inset := layout.Inset{Top: 10, Right: 20, Left: 20}
 					return inset.Layout(gtx, func(gtx layout.Context) layout.Dimensions {
 						ui.searchInput.SingleLine = true
 						ui.searchInput.Submit = true
@@ -69,16 +80,10 @@ func (ui *DownloadUI) DownloadLayout(gtx layout.Context, th *material.Theme, prg
 						return textInput.Layout(gtx)
 					})
 				}),
-
 				//Search Button
 				layout.Rigid(func(gtx layout.Context) layout.Dimensions {
 					// Padding
-					inset := layout.Inset{
-						Top:   10,
-						Right: 20,
-						Left:  20,
-					}
-
+					inset := layout.Inset{Top: 10, Right: 20, Left: 20}
 					return inset.Layout(gtx, func(gtx layout.Context) layout.Dimensions {
 						btn := material.Button(th, &ui.searchButton, "Search")
 						if ui.searchButton.Clicked(gtx) {
@@ -89,7 +94,6 @@ func (ui *DownloadUI) DownloadLayout(gtx layout.Context, th *material.Theme, prg
 				}),
 			)
 		}),
-
 		// Lower part for search results
 		layout.Rigid(func(gtx layout.Context) layout.Dimensions {
 			return ui.LayoutResults(gtx, th, prgUI)
@@ -116,10 +120,7 @@ func (ui *DownloadUI) LayoutResults(gtx layout.Context, th *material.Theme, prgU
 	}
 
 	// Results
-	return layout.Inset{
-		Top:    8,
-		Bottom: 8,
-	}.Layout(gtx, func(gtx layout.Context) layout.Dimensions {
+	return layout.Inset{Top: 8, Bottom: 8}.Layout(gtx, func(gtx layout.Context) layout.Dimensions {
 		// Display all result in buttons
 		return ui.list.List.Layout(gtx, len(ui.results), func(gtx layout.Context, i int) layout.Dimensions {
 			btn := &ui.resultButtons[i]
@@ -129,13 +130,7 @@ func (ui *DownloadUI) LayoutResults(gtx layout.Context, th *material.Theme, prgU
 				// The result button
 				layout.Flexed(0.7, func(gtx layout.Context) layout.Dimensions {
 					// Padding
-					inset := layout.Inset{
-						Top:    5,
-						Bottom: 5,
-						Left:   20,
-						Right:  20,
-					}
-
+					inset := layout.Inset{Top: 5, Bottom: 5, Left: 20, Right: 20}
 					// Apply the padding and layout the button
 					return inset.Layout(gtx, func(gtx layout.Context) layout.Dimensions {
 						fileSize := uint64(ui.results[i].Size)
@@ -166,10 +161,7 @@ func (ui *DownloadUI) LayoutResults(gtx layout.Context, th *material.Theme, prgU
 				layout.Rigid(func(gtx layout.Context) layout.Dimensions {
 					if isSelected {
 						// Padding
-						inset := layout.Inset{
-							Right: 20,
-						}
-
+						inset := layout.Inset{Right: 20}
 						return inset.Layout(gtx, func(gtx layout.Context) layout.Dimensions {
 							// Download buttton property
 							btn := material.Button(th, &ui.downloadButton, "Download")
