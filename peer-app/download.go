@@ -203,9 +203,9 @@ func (ui *DownloadUI) PerformSearch() {
 	resp, err := reverseProxy.Get("http://" + reverseProxyAddr + getReq)
 	if err != nil {
 		if netErr, ok := err.(net.Error); ok && netErr.Timeout() {
-			PopupMessage("Cannot send search query request \ndue to busy servers")
+			PopupMessage("Cannot search files \ndue to busy servers")
 		} else {
-			PopupMessage("Cannot send search query request \ndue to proxy error")
+			PopupMessage("Cannot search files \ndue to proxy error")
 		}
 		log.Println("Error when sending search query request", err)
 		ui.results = nil
@@ -249,11 +249,9 @@ func (ui *DownloadUI) PerformSearch() {
 func (ui *DownloadUI) Download(prgUI *ProgressUI) {
 	go func() {
 		fileName := ui.selectedResult.Name
-		// Add file to the progress page
-		downloadFile := prgUI.AddDownload(fileName, ui.selectedResult.Hash)
 
-		// Not process to download since file is downloading
-		if downloadFile == nil {
+		// Check file if is downloading
+		if prgUI.IsInDownload(fileName, ui.selectedResult.Hash) {
 			PopupMessage(fileName + " is downloading!")
 			return
 		}
@@ -263,9 +261,15 @@ func (ui *DownloadUI) Download(prgUI *ProgressUI) {
 		log.Println("Send GET " + getReq + " to " + reverseProxyAddr)
 
 		// Send GET requet
-		resp, err := http.Get("http://" + reverseProxyAddr + getReq)
+		reverseProxy := &http.Client{Timeout: time.Second * 2}
+		resp, err := reverseProxy.Get("http://" + reverseProxyAddr + getReq)
 		if err != nil {
-			log.Println("Error:", err)
+			if netErr, ok := err.(net.Error); ok && netErr.Timeout() {
+				PopupMessage("Cannot download file \ndue to busy servers")
+			} else {
+				PopupMessage("Cannot download file \ndue to proxy error")
+			}
+			log.Println("Error when sending single file query", err)
 			return
 		}
 		defer resp.Body.Close()
@@ -273,29 +277,43 @@ func (ui *DownloadUI) Download(prgUI *ProgressUI) {
 		// Decode the JSON response
 		var manifest types.Manifest
 		if err := json.NewDecoder(resp.Body).Decode(&manifest); err != nil {
+			PopupMessage("Error response from servers")
 			log.Println("Decode Error:", err)
 			return
 		}
 
 		// Print received data
-		log.Println("Name:", manifest.Name)
-		log.Println("Hash:", manifest.Hash)
+		log.Println("Download Name:", manifest.Name)
+		log.Println("Download Hash:", manifest.Hash)
 
 		// ------------------------------------------------------------
 		// !P2P Download
-
-		// Update download progress = data received / file size
-		downloadFile.Progress = 0
-
 		tabSelected = ProgressTab
 
 		peerID, err := dhtLookup(ui, manifest.Hash)
 		if err != nil {
+			PopupMessage("Cannot download file \ndue to no providers")
 			log.Println("Error finding provider:", err)
 			return
 		}
 
-		requestFile(ui.node, peerID, manifest.Name, ui.dirPath, manifest.Hash)
+		// Add file to the progress page
+		downloadFile := prgUI.AddDownload(fileName, ui.selectedResult.Hash)
+
+		// TODO Update download progress = data received / file size
+		downloadFile.Progress = 0
+
+		// TODO Keep checking next provider or trying until some providers is online
+		if err := requestFile(ui.node, peerID, manifest.Name, ui.dirPath, manifest.Hash); err != nil {
+			if strings.HasPrefix(err.Error(), "File Not Found") {
+				PopupMessage("File Not Found")
+			} else if strings.HasPrefix(err.Error(), "Integrity check failed") {
+				PopupMessage("Integrity check failed")
+			} else {
+				PopupMessage("Fail to get file from peers")
+			}
+			return
+		}
 
 		// Set the progress bar to 100% (hardcode for now)
 		downloadFile.Progress = 1
@@ -304,7 +322,7 @@ func (ui *DownloadUI) Download(prgUI *ProgressUI) {
 	}()
 }
 
-func requestFile(node host.Host, providerID peer.ID, fileName string, dirPath string, expectedCID string) {
+func requestFile(node host.Host, providerID peer.ID, fileName string, dirPath string, expectedCID string) error {
 	// Open a new stream to the provider
 	ctx := context.Background()
 
@@ -313,27 +331,27 @@ func requestFile(node host.Host, providerID peer.ID, fileName string, dirPath st
 
 	s, err := node.NewStream(ctx, providerID, protocol)
 	if err != nil {
-		log.Fatal(err)
+		return err
 	}
 	defer s.Close()
 
 	// Send the file request
-	fmt.Printf("Requesting file: %s\n", fileName)
+	log.Printf("Requesting file: %s\n", fileName)
 	if _, err := s.Write([]byte(fileName + "\n")); err != nil {
-		log.Fatal(err)
+		return err
 	}
 
 	// Read the response
 	data, err := io.ReadAll(s)
 	if err != nil {
-		log.Fatal(err)
+		return err
 	}
 
 	// Check if the response indicates an error
 	response := string(data)
 	if strings.HasPrefix(response, "Error:") || strings.HasPrefix(response, "File not found") {
-		fmt.Println("Failed to get file:", response)
-		return
+		log.Printf("Failed to get file %s from the provider %s\n", fileName, providerID.String())
+		return fmt.Errorf("File Not Found from the provider")
 	}
 
 	// Construct the correct save path in the peer's directory
@@ -342,24 +360,27 @@ func requestFile(node host.Host, providerID peer.ID, fileName string, dirPath st
 	// Write the file data to correct directory
 	err = os.WriteFile(savePath, data, 0644)
 	if err != nil {
-		log.Fatal(err)
+		return err
 	}
 
-	fmt.Printf("Received and saved file as received_%s\n", fileName)
+	log.Printf("Received and saved file as %s\n", fileName)
 
 	// Integrity Check: Compare computed CID with expected CID
 	computedCID, err := cidFromFile(savePath)
 	if err != nil {
 		log.Println("Error computing CID for downloaded file:", err)
-		return
+		return err
 	}
 	if computedCID.String() == expectedCID {
-		fmt.Println("✅ Integrity check passed: File matches expected CID.")
+		log.Println("✅ Integrity check passed: File matches expected CID.")
 	} else {
-		fmt.Println("❌ Integrity check failed: File does NOT match expected CID.")
+		log.Println("❌ Integrity check failed: File does NOT match expected CID.")
 		log.Printf("Expected CID: %s\n", expectedCID)
 		log.Printf("Computed CID: %s\n", computedCID.String())
+		return fmt.Errorf("Integrity check failed")
 	}
+
+	return nil
 }
 
 func dhtLookup(ui *DownloadUI, fileCID string) (peer.ID, error) {
