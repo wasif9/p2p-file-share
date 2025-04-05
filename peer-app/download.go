@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"image"
 	"image/color"
 	"io"
 	"log"
@@ -15,6 +16,8 @@ import (
 	"time"
 
 	"gioui.org/layout"
+	"gioui.org/op/clip"
+	"gioui.org/op/paint"
 	"gioui.org/unit"
 	"gioui.org/widget"
 	"gioui.org/widget/material"
@@ -38,6 +41,7 @@ type DownloadUI struct {
 	list           widget.List
 	dirPath        string // The directory where downloaded files should be saved
 	downloadButton widget.Clickable
+	loading        bool
 }
 
 func (ui *DownloadUI) DownloadLayout(gtx layout.Context, th *material.Theme, prgUI *ProgressUI) layout.Dimensions {
@@ -73,7 +77,7 @@ func (ui *DownloadUI) DownloadLayout(gtx layout.Context, th *material.Theme, prg
 						// Detect Enter pressed
 						if e, ok := ui.searchInput.Update(gtx); ok {
 							if _, isSubmit := e.(widget.SubmitEvent); isSubmit {
-								ui.PerformSearch()
+								go ui.PerformSearch()
 							}
 						}
 
@@ -87,16 +91,43 @@ func (ui *DownloadUI) DownloadLayout(gtx layout.Context, th *material.Theme, prg
 					return inset.Layout(gtx, func(gtx layout.Context) layout.Dimensions {
 						btn := material.Button(th, &ui.searchButton, "Search")
 						if ui.searchButton.Clicked(gtx) {
-							ui.PerformSearch()
+							go ui.PerformSearch()
 						}
 						return btn.Layout(gtx)
 					})
 				}),
 			)
 		}),
+		// Divider
+		layout.Rigid(func(gtx layout.Context) layout.Dimensions {
+			inset := layout.Inset{Top: 3, Bottom: 3}
+			return inset.Layout(gtx, func(gtx layout.Context) layout.Dimensions {
+				width := gtx.Constraints.Max.X
+				thickness := gtx.Dp(3)
+				rect := clip.Rect{Max: image.Point{X: width, Y: thickness}}.Op()
+				paint.FillShape(gtx.Ops, color.NRGBA{R: 210, G: 210, B: 210, A: 255}, rect)
+				return layout.Dimensions{Size: image.Point{X: width, Y: thickness}}
+			})
+		}),
 		// Lower part for search results
 		layout.Rigid(func(gtx layout.Context) layout.Dimensions {
-			return ui.LayoutResults(gtx, th, prgUI)
+			if ui.loading {
+				return layout.Flex{Axis: layout.Horizontal}.Layout(gtx,
+					layout.Flexed(1, func(gtx layout.Context) layout.Dimensions {
+						return layout.Center.Layout(gtx, func(gtx layout.Context) layout.Dimensions {
+							// Padding
+							inset := layout.Inset{Top: 10, Bottom: 10}
+							return inset.Layout(gtx, func(gtx layout.Context) layout.Dimensions {
+								text := material.Body1(th, "⏳...")
+								text.TextSize = unit.Sp(20)
+								return text.Layout(gtx)
+							})
+						})
+					}),
+				)
+			} else {
+				return ui.LayoutResults(gtx, th, prgUI)
+			}
 		}),
 	)
 }
@@ -183,6 +214,7 @@ func (ui *DownloadUI) LayoutResults(gtx layout.Context, th *material.Theme, prgU
 }
 
 func (ui *DownloadUI) PerformSearch() {
+	ui.loading = true
 	query := strings.TrimSpace(ui.searchInput.Text())
 
 	// Make GET request to the load balancer server
@@ -232,9 +264,10 @@ func (ui *DownloadUI) PerformSearch() {
 
 	// Change the GUI search result
 	ui.results = manifests
-
 	// Make buttons to select the result
 	ui.resultButtons = make([]widget.Clickable, len(ui.results))
+	ui.loading = false
+	log.Println("-------------------------------------")
 }
 
 func (ui *DownloadUI) Download(prgUI *ProgressUI) {

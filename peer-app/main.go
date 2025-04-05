@@ -128,6 +128,7 @@ func runGUI(node host.Host, kad *dht.IpfsDHT) {
 		list: widget.List{
 			List: layout.List{Axis: layout.Vertical},
 		},
+		loading: false,
 	}
 	upUI := &UploadUI{
 		dirPath: dataDir,
