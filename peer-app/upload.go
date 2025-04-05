@@ -19,6 +19,7 @@ import (
 	"gioui.org/op/clip"
 	"gioui.org/op/paint"
 	"gioui.org/text"
+	"gioui.org/unit"
 	"gioui.org/widget"
 	"gioui.org/widget/material"
 
@@ -31,11 +32,11 @@ import (
 
 // UploadUI manages the directory browsing + file selection + DHT providing
 type UploadUI struct {
-	list     widget.List
-	files    []os.DirEntry
-	dirPath  string
-	errorMsg string
-	// Buttons
+	list       widget.List
+	files      []os.DirEntry
+	dirPath    string
+	errorMsg   string
+	refreshBtn widget.Clickable
 	backBtn    widget.Clickable
 	fileBtns   []widget.Clickable
 	selected   os.DirEntry
@@ -74,23 +75,6 @@ func (upload *UploadUI) LoadFiles() {
 	upload.selected = nil
 }
 
-// func (upload *UploadUI) LoadFilesAgain(node host.Host, kadDHT *dht.IpfsDHT) {
-// 	dirPath := "./p2-dir" // Ensure this matches the actual directory
-// 	files, err := os.ReadDir(dirPath)
-// 	if err != nil {
-// 		log.Println("Error reading directory:", err)
-// 		return
-// 	}
-
-// 	for _, file := range files {
-// 		if !file.IsDir() {
-// 			filePath := file.Name()
-// 			log.Println("Announcing file:", filePath)
-// 			announceFile(node, kadDHT, filePath)
-// 		}
-// 	}
-// }
-
 // UploadLayout is the main layout method for the Upload tab
 func (upload *UploadUI) UploadLayout(gtx layout.Context, th *material.Theme) layout.Dimensions {
 	return layout.Flex{Axis: layout.Vertical, Alignment: layout.End}.Layout(gtx,
@@ -104,30 +88,61 @@ func (upload *UploadUI) UploadLayout(gtx layout.Context, th *material.Theme) lay
 				return errLabel.Layout(gtx)
 			})
 		}),
-
+		// Title label
 		layout.Rigid(func(gtx layout.Context) layout.Dimensions {
 			return layout.Flex{Axis: layout.Horizontal}.Layout(gtx,
-				// Title label
+				layout.Flexed(1, func(gtx layout.Context) layout.Dimensions {
+					return layout.Center.Layout(gtx, func(gtx layout.Context) layout.Dimensions {
+						// Padding
+						inset := layout.Inset{Top: 10, Bottom: 10}
+						return inset.Layout(gtx, func(gtx layout.Context) layout.Dimensions {
+							text := material.Body1(th, "Upload Files")
+							text.TextSize = unit.Sp(20)
+							return text.Layout(gtx)
+						})
+					})
+				}),
+			)
+		}),
+		layout.Rigid(func(gtx layout.Context) layout.Dimensions {
+			return layout.Flex{Axis: layout.Horizontal}.Layout(gtx,
+				// "Back" button
+				layout.Rigid(func(gtx layout.Context) layout.Dimensions {
+					inset := layout.Inset{Top: 10, Bottom: 10, Left: 20}
+					return inset.Layout(gtx, func(gtx layout.Context) layout.Dimensions {
+						btn := material.Button(th, &upload.backBtn, "🢨")
+						btn.TextSize = 25
+						if upload.backBtn.Clicked(gtx) {
+							upload.NavigateUp()
+						}
+						return btn.Layout(gtx)
+					})
+				}),
+				// Current directory
 				layout.Flexed(1, func(gtx layout.Context) layout.Dimensions {
 					inset := layout.Inset{Top: 10, Bottom: 10, Left: 20, Right: 20}
 					return inset.Layout(gtx, func(gtx layout.Context) layout.Dimensions {
-						label := material.Label(th, th.TextSize, "File Upload")
+						pwd, err := os.Getwd()
+						if err != nil {
+							log.Println("Error when getting current directory", err)
+							pwd = ""
+						}
+						pwd = filepath.Join(pwd, upload.dirPath)
+						label := material.Label(th, th.TextSize, pwd)
 						label.Alignment = text.Start
 						return label.Layout(gtx)
 					})
 				}),
-				// "Back" button
+				// "Refresh" button
 				layout.Rigid(func(gtx layout.Context) layout.Dimensions {
-					inset := layout.Inset{Top: 10, Bottom: 10, Left: 20, Right: 20}
+					inset := layout.Inset{Top: 10, Bottom: 10, Right: 20}
 					return inset.Layout(gtx, func(gtx layout.Context) layout.Dimensions {
-						if upload.dirPath != "/" {
-							btn := material.Button(th, &upload.backBtn, "Back")
-							if upload.backBtn.Clicked(gtx) {
-								upload.NavigateUp()
-							}
-							return btn.Layout(gtx)
+						btn := material.Button(th, &upload.refreshBtn, "⟳")
+						btn.TextSize = 25
+						if upload.refreshBtn.Clicked(gtx) {
+							upload.LoadFiles()
 						}
-						return layout.Dimensions{}
+						return btn.Layout(gtx)
 					})
 				}),
 			)
@@ -216,8 +231,10 @@ func (upload *UploadUI) NavigateTo(dir string) {
 
 // NavigateUp moves up one directory
 func (upload *UploadUI) NavigateUp() {
-	upload.dirPath = filepath.Dir(upload.dirPath)
-	upload.LoadFiles()
+	if upload.dirPath != dataDir {
+		upload.dirPath = filepath.Dir(upload.dirPath)
+		upload.LoadFiles()
+	}
 }
 
 // UploadFile performs the final upload step correctly:
@@ -313,36 +330,3 @@ func GetFileSize(filePath string) (int64, error) {
 	}
 	return fileInfo.Size(), err
 }
-
-// // Helper: get file SHA256
-//
-//	func GetFileHash(filePath string) (string, error) {
-//		file, err := os.Open(filePath)
-//		if err != nil {
-//			return "", err
-//		}
-//		defer file.Close()
-//		h := sha256.New()
-//		if _, err := io.Copy(h, file); err != nil {
-//			return "", err
-//		}
-//		return hex.EncodeToString(h.Sum(nil)), nil
-//	}
-// func announceFile(kadDHT *dht.IpfsDHT, filePath string) {
-// 	// Convert filename to hash (CID-like)
-// 	fileHashCID, err := cidFromString(filePath)
-// 	if err != nil {
-// 		log.Println("Error generating CID for file:", err)
-// 		return
-// 	}
-
-// 	// Store the file hash in the DHT
-// 	ctx := context.Background()
-// 	err = kadDHT.Provide(ctx, fileHashCID, true)
-// 	if err != nil {
-// 		log.Println("Error announcing file to DHT:", err)
-// 		return
-// 	}
-
-// 	log.Println("File announced in DHT:", filePath, "->", fileHashCID.String())
-// }
