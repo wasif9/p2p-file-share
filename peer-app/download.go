@@ -271,7 +271,6 @@ func (ui *DownloadUI) PerformSearch() {
 	// Make buttons to select the result
 	ui.resultButtons = make([]widget.Clickable, len(ui.results))
 	ui.loading = false
-	log.Println("-------------------------------------")
 }
 
 func (ui *DownloadUI) Download(prgUI *ProgressUI) {
