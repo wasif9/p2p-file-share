@@ -14,6 +14,7 @@ import (
 	"sort"
 	"strconv"
 	"sync"
+	"time"
 
 	"gioui.org/layout"
 	"gioui.org/op/clip"
@@ -78,16 +79,6 @@ func (upload *UploadUI) LoadFiles() {
 // UploadLayout is the main layout method for the Upload tab
 func (upload *UploadUI) UploadLayout(gtx layout.Context, th *material.Theme) layout.Dimensions {
 	return layout.Flex{Axis: layout.Vertical, Alignment: layout.End}.Layout(gtx,
-		layout.Rigid(func(gtx layout.Context) layout.Dimensions {
-			if upload.errorMsg == "" {
-				return layout.Dimensions{}
-			}
-			return layout.Inset{Top: 10, Bottom: 10, Left: 20, Right: 20}.Layout(gtx, func(gtx layout.Context) layout.Dimensions {
-				errLabel := material.Label(th, th.TextSize, upload.errorMsg)
-				errLabel.Color = color.NRGBA{R: 255, A: 255} // Red
-				return errLabel.Layout(gtx)
-			})
-		}),
 		// Title label
 		layout.Rigid(func(gtx layout.Context) layout.Dimensions {
 			return layout.Flex{Axis: layout.Horizontal}.Layout(gtx,
@@ -255,6 +246,7 @@ func (upload *UploadUI) UploadFile() {
 	fileSize, err := GetFileSize(filePath)
 	if err != nil {
 		log.Println("Error getting file size:", err)
+		PopupMessage("Canoot upload file \ndue to file corruption")
 		return
 	}
 	log.Println("File Size =", strconv.FormatInt(fileSize, 10), "bytes")
@@ -263,6 +255,7 @@ func (upload *UploadUI) UploadFile() {
 	cid, err := cidFromFile(filePath)
 	if err != nil {
 		log.Println("Error generating CID from file:", err)
+		PopupMessage("Canoot upload file \ndue to file corruption")
 		return
 	}
 	log.Println("CID =", cid.String())
@@ -271,6 +264,7 @@ func (upload *UploadUI) UploadFile() {
 	ctx := context.Background()
 	if err := upload.kadDHT.Provide(ctx, cid, true); err != nil {
 		log.Println("Error providing CID to DHT:", err)
+		PopupMessage("Canoot upload file \ndue to DHT error")
 		return
 	}
 	log.Println("Successfully provided CID to DHT:", cid.String())
@@ -279,13 +273,14 @@ func (upload *UploadUI) UploadFile() {
 	manifest := types.Manifest{
 		Name: fileName,
 		Hash: cid.String(), // CID instead of raw file hash
-		// Optionally set Size: fileSize if your model supports it
+		Size: fileSize,
 	}
 
 	// 5) Marshal manifest to JSON
 	jsonData, err := json.Marshal(manifest)
 	if err != nil {
 		log.Println("Error encoding JSON:", err)
+		PopupMessage("Canoot upload file \ndue to JSON type error")
 		return
 	}
 
@@ -293,33 +288,44 @@ func (upload *UploadUI) UploadFile() {
 	postReq := "/api/" + DBManagerVer + "/manifests"
 	log.Println("Sending POST", postReq, "to", reverseProxyAddr)
 
-	req, err := http.NewRequest("POST", "http://"+reverseProxyAddr+postReq, bytes.NewBuffer(jsonData))
+	// Set timeout for whole POST request
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second*2)
+	defer cancel()
+
+	req, err := http.NewRequestWithContext(ctx, "POST", "http://"+reverseProxyAddr+postReq, bytes.NewBuffer(jsonData))
 	if err != nil {
 		log.Println("Error creating POST request:", err)
+		PopupMessage("Canoot upload file \ndue to POST request failure")
 		return
 	}
 	req.Header.Set("Content-Type", "application/json")
 
 	resp, err := http.DefaultClient.Do(req)
 	if err != nil {
+		if ctx.Err() == context.DeadlineExceeded {
+			PopupMessage("Canoot upload file \ndue to busy servers")
+		} else {
+			PopupMessage("Canoot upload file \ndue to proxy error")
+		}
 		log.Println("Error sending POST request:", err)
-		upload.errorMsg = "Upload failed. Backend unreachable."
 		return
 	}
 	defer resp.Body.Close()
 
-	// Reset errorMsg on success
-	upload.errorMsg = ""
-
 	respSer, err := io.ReadAll(resp.Body)
 	if err != nil {
 		log.Println("Error reading response:", err)
+		PopupMessage("Cannot upload file \ndue to incorrect response from servers")
 		return
 	}
 	log.Println("Resp Status:", resp.Status)
 	log.Println("Resp Body:", string(respSer))
 
-	PopupMessage("Uploaded & Provided: " + fileName)
+	if resp.Status == "201 Created" {
+		PopupMessage("Uploaded & Provided: " + fileName)
+	} else {
+		PopupMessage("Cannot upload file \ndue to server error")
+	}
 }
 
 // Helper: get file size
