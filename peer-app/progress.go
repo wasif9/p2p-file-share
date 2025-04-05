@@ -127,11 +127,8 @@ func (ui *ProgressUI) LayoutDownloadItem(gtx layout.Context, th *material.Theme,
 
 // Add new download
 func (ui *ProgressUI) AddDownload(name string, hash string) *Download {
-	for _, file := range ui.files {
-		// Let checked file not to be shown in the list
-		if hash == file.Hash && file.Progress != 1 {
-			return nil
-		}
+	if ui.IsInDownload(name, hash) {
+		return nil
 	}
 
 	log.Println("New file " + name + "starts to download")
@@ -140,6 +137,18 @@ func (ui *ProgressUI) AddDownload(name string, hash string) *Download {
 	ui.files = append(ui.files, newFile)
 
 	return &ui.files[len(ui.files)-1]
+}
+
+// Check if is in download list
+func (ui *ProgressUI) IsInDownload(name string, hash string) bool {
+	for _, file := range ui.files {
+		// If file is in the download list
+		if hash == file.Hash && file.Progress != 1 {
+			return true
+		}
+	}
+
+	return false
 }
 
 // Remove all checked downloads
