@@ -7,10 +7,12 @@ import (
 	"image/color"
 	"io"
 	"log"
+	"net"
 	"net/http"
 	"os"
 	"path/filepath"
 	"strings"
+	"time"
 
 	"gioui.org/layout"
 	"gioui.org/unit"
@@ -197,30 +199,43 @@ func (ui *DownloadUI) PerformSearch() {
 	log.Println("Send GET " + getReq + " to " + reverseProxyAddr)
 
 	// Send GET requet
-	resp, err := http.Get("http://" + reverseProxyAddr + getReq)
+	reverseProxy := &http.Client{Timeout: time.Second * 2}
+	resp, err := reverseProxy.Get("http://" + reverseProxyAddr + getReq)
 	if err != nil {
+		if netErr, ok := err.(net.Error); ok && netErr.Timeout() {
+			PopupMessage("Cannot send search query request \ndue to busy servers")
+		} else {
+			PopupMessage("Cannot send search query request \ndue to proxy error")
+		}
 		log.Println("Error when sending search query request", err)
+		ui.results = nil
 		return
 	}
 	defer resp.Body.Close()
 
 	// Check for successful response status
 	if resp.StatusCode != http.StatusOK {
+		PopupMessage("Cannot get data from servers! Try again")
 		log.Println("Error receiving non-OK response", resp.Status)
+		ui.results = nil
 		return
 	}
 
 	// Read the response body
 	respSer, err := io.ReadAll(resp.Body)
 	if err != nil {
+		PopupMessage("Error response from database")
 		log.Println("Error reading response body:", err)
+		ui.results = nil
 		return
 	}
 
 	// Decode the JSON response
 	var manifests []types.Manifest
 	if err := json.Unmarshal(respSer, &manifests); err != nil {
+		PopupMessage("Error response from database")
 		log.Println("Decode Error:", err)
+		ui.results = nil
 		return
 	}
 
