@@ -232,6 +232,7 @@ func (ui *DownloadUI) PerformSearch() {
 		}
 		log.Println("Error when sending search query request", err)
 		ui.results = nil
+		ui.loading = false
 		return
 	}
 	defer resp.Body.Close()
@@ -241,6 +242,7 @@ func (ui *DownloadUI) PerformSearch() {
 		PopupMessage("Cannot get data from servers! Try again")
 		log.Println("Error receiving non-OK response", resp.Status)
 		ui.results = nil
+		ui.loading = false
 		return
 	}
 
@@ -250,6 +252,7 @@ func (ui *DownloadUI) PerformSearch() {
 		PopupMessage("Error response from database")
 		log.Println("Error reading response body:", err)
 		ui.results = nil
+		ui.loading = false
 		return
 	}
 
@@ -259,6 +262,7 @@ func (ui *DownloadUI) PerformSearch() {
 		PopupMessage("Error response from database")
 		log.Println("Decode Error:", err)
 		ui.results = nil
+		ui.loading = false
 		return
 	}
 
@@ -280,6 +284,10 @@ func (ui *DownloadUI) Download(prgUI *ProgressUI) {
 			return
 		}
 
+		// Add file to the progress page
+		tabSelected = ProgressTab
+		downloadFile := prgUI.AddDownload(fileName, ui.selectedResult.Hash)
+
 		// Make GET request to the load balancer server
 		getReq := "/api/" + DBManagerVer + "/manifests/" + fileName
 		log.Println("Send GET " + getReq + " to " + reverseProxyAddr)
@@ -293,7 +301,8 @@ func (ui *DownloadUI) Download(prgUI *ProgressUI) {
 			} else {
 				PopupMessage("Cannot download file \ndue to proxy error")
 			}
-			log.Println("Error when sending single file query", err)
+			log.Println("Error when sending file query", err)
+			downloadFile.Shown = false
 			return
 		}
 		defer resp.Body.Close()
@@ -303,6 +312,7 @@ func (ui *DownloadUI) Download(prgUI *ProgressUI) {
 		if err := json.NewDecoder(resp.Body).Decode(&manifest); err != nil {
 			PopupMessage("Error response from servers")
 			log.Println("Decode Error:", err)
+			downloadFile.Shown = false
 			return
 		}
 
@@ -312,17 +322,14 @@ func (ui *DownloadUI) Download(prgUI *ProgressUI) {
 
 		// ------------------------------------------------------------
 		// !P2P Download
-		tabSelected = ProgressTab
 
 		peerID, err := dhtLookup(ui, manifest.Hash)
 		if err != nil {
 			PopupMessage("Cannot download file \ndue to no providers")
 			log.Println("Error finding provider:", err)
+			downloadFile.Shown = false
 			return
 		}
-
-		// Add file to the progress page
-		downloadFile := prgUI.AddDownload(fileName, ui.selectedResult.Hash)
 
 		// TODO Update download progress = data received / file size
 		downloadFile.Progress = 0
@@ -330,11 +337,11 @@ func (ui *DownloadUI) Download(prgUI *ProgressUI) {
 		// TODO Keep checking next provider or trying until some providers is online
 		if err := requestFile(ui.node, peerID, manifest.Name, ui.dirPath, manifest.Hash); err != nil {
 			if strings.HasPrefix(err.Error(), "File Not Found") {
-				PopupMessage("File Not Found")
+				PopupMessage("File Not Found: " + fileName)
 			} else if strings.HasPrefix(err.Error(), "Integrity check failed") {
-				PopupMessage("Integrity check failed")
+				PopupMessage("Integrity check failed: " + fileName)
 			} else {
-				PopupMessage("Fail to get file from peers")
+				PopupMessage("Fail to get file " + fileName + " from peers")
 			}
 			return
 		}
