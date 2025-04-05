@@ -18,6 +18,7 @@ import (
 	"gioui.org/unit"
 	"gioui.org/widget"
 	"gioui.org/widget/material"
+	"github.com/dustin/go-humanize"
 	"github.com/ipfs/go-cid"
 	dht "github.com/libp2p/go-libp2p-kad-dht"
 	"github.com/libp2p/go-libp2p/core/host"
@@ -137,19 +138,17 @@ func (ui *DownloadUI) LayoutResults(gtx layout.Context, th *material.Theme, prgU
 
 					// Apply the padding and layout the button
 					return inset.Layout(gtx, func(gtx layout.Context) layout.Dimensions {
-
-						display_str := fmt.Sprintf("%s | %s", ui.results[i].Name, ui.results[i].Hash)
+						fileSize := uint64(ui.results[i].Size)
+						display_str := fmt.Sprintf("%s | %s", ui.results[i].Name, humanize.Bytes(fileSize))
 						button := material.Button(th, btn, display_str)
 
 						// Different style for selected items
 						if isSelected {
 							// Create a highlighted button
-							// button = material.Button(th, btn, ui.results[i].fileName)
 							button.Background = th.Palette.ContrastBg
 							button.Color = th.Palette.ContrastFg
 						} else {
 							// Regular button
-							// button = material.Button(th, btn, ui.results[i].fileName)
 							button.Background = color.NRGBA{R: 255, G: 255, B: 255, A: 255}
 							button.Color = color.NRGBA{R: 0, G: 0, B: 0, A: 255}
 						}
