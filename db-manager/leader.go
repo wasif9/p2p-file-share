@@ -152,7 +152,7 @@ func election() {
 		if timestamp > highestTimestamp { // since this is >, ties will be broken by the node index (lower index wins)
 			highestTimestamp = timestamp
 			highestIndex = nodeIndex
-		} else if timestamp != -1 && timestamp == highestTimestamp {
+		} else if timestamp == highestTimestamp {
 			if nodeIndex < highestIndex {
 				highestTimestamp = timestamp
 				highestIndex = nodeIndex
