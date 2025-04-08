@@ -69,6 +69,11 @@ func main() {
 	if err := godotenv.Load(); err != nil {
 		log.Println("Peer App fail to load .env file", err)
 	}
+	bootstrapAddr := os.Getenv("BOOTSTRAP_ADDR")
+	if bootstrapAddr == "" {
+		log.Fatal("BOOTSTRAP_ADDR environment variable not set. Are you running peer-app in the same directory as the .env file?")
+	}
+
 	ctx := context.Background()
 	flag.StringVar(&dataDir, "data-dir", "", "Directory to store peer files")
 	flag.Parse()
@@ -81,9 +86,6 @@ func main() {
 	if err != nil {
 		log.Fatalf("Failed to create data dir: %v", err)
 	}
-
-	// Optional: pass a bootstrap multiaddr via ENV
-	bootstrapAddr := os.Getenv("BOOTSTRAP_ADDR")
 
 	// 1) Create a new libp2p node + Kademlia DHT
 	node, kad := setupNode(ctx, bootstrapAddr)
@@ -207,67 +209,66 @@ func setupNode(ctx context.Context, bootstrapAddr string) (host.Host, *dht.IpfsD
 	}
 
 	// 4) If we have a bootstrap multiaddr, connect to it
-	if bootstrapAddr != "" {
-		log.Println("Dialing bootstrap:", bootstrapAddr)
-		ma, err := multiaddr.NewMultiaddr(bootstrapAddr)
-		if err != nil {
-			log.Fatalf("Invalid bootstrap address: %s", err)
-		}
-		info, err := peer.AddrInfoFromP2pAddr(ma)
-		if err != nil {
-			log.Fatalf("AddrInfoFromP2pAddr failed: %s", err)
-		}
-
-		// Just call node.Connect(...), no need for (*host).Connect
-		if err := node.Connect(ctx, *info); err != nil {
-			log.Fatalf("Failed to connect to bootstrap: %s", err)
-		}
-		log.Println("Connected to bootstrap!")
-		// Explicitly call FindPeer to populate your local routing table
-		// ctx, cancel := context.WithTimeout(ctx, time.Second*10)
-		// defer cancel()
-
-		// log.Println("Populating routing table...")
-		// peerInfo, err := kad.FindPeer(ctx, info.ID)
-		// if err != nil {
-		// 	log.Printf("FindPeer error (might be okay initially): %v\n", err)
-		// } else {
-		// 	log.Printf("Peer found: %v\n", peerInfo)
-		// }
-		// Announce your node's presence clearly:
-		announceKey, err := cidFromString("/myapp/peers")
-		if err != nil {
-			log.Fatalf("Error creating CID: %v", err)
-		}
-
-		// Announce your node periodically
-		go func() {
-			for {
-				ctxProvide, cancel := context.WithTimeout(context.Background(), 10*time.Second)
-				if err := kad.Provide(ctxProvide, announceKey, true); err != nil {
-					log.Printf("Provide error: %v\n", err)
-				}
-				cancel()
-				time.Sleep(30 * time.Second)
-			}
-		}()
-
-		// Discover peers periodically
-		go func() {
-			for {
-				ctxFind, cancel := context.WithTimeout(context.Background(), 10*time.Second)
-				peerChan := kad.FindProvidersAsync(ctxFind, announceKey, 10)
-				for p := range peerChan {
-					if p.ID != node.ID() {
-						log.Printf("Discovered peer: %s\n", p.ID.String())
-						node.Peerstore().AddAddrs(p.ID, p.Addrs, time.Hour)
-					}
-				}
-				cancel()
-				time.Sleep(15 * time.Second)
-			}
-		}()
+	log.Println("Dialing bootstrap:", bootstrapAddr)
+	ma, err := multiaddr.NewMultiaddr(bootstrapAddr)
+	if err != nil {
+		log.Fatalf("Invalid bootstrap address: %s", err)
 	}
+	info, err := peer.AddrInfoFromP2pAddr(ma)
+	if err != nil {
+		log.Fatalf("AddrInfoFromP2pAddr failed: %s", err)
+	}
+
+	// Just call node.Connect(...), no need for (*host).Connect
+	log.Println("Connecting to bootstrap peer:", info.ID)
+	if err := node.Connect(ctx, *info); err != nil {
+		log.Fatalf("Failed to connect to bootstrap: %s", err)
+	}
+	log.Println("Connected to bootstrap!")
+	// Explicitly call FindPeer to populate your local routing table
+	// ctx, cancel := context.WithTimeout(ctx, time.Second*10)
+	// defer cancel()
+
+	// log.Println("Populating routing table...")
+	// peerInfo, err := kad.FindPeer(ctx, info.ID)
+	// if err != nil {
+	// 	log.Printf("FindPeer error (might be okay initially): %v\n", err)
+	// } else {
+	// 	log.Printf("Peer found: %v\n", peerInfo)
+	// }
+	// Announce your node's presence clearly:
+	announceKey, err := cidFromString("/myapp/peers")
+	if err != nil {
+		log.Fatalf("Error creating CID: %v", err)
+	}
+
+	// Announce your node periodically
+	go func() {
+		for {
+			ctxProvide, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+			if err := kad.Provide(ctxProvide, announceKey, true); err != nil {
+				log.Printf("Provide error: %v\n", err)
+			}
+			cancel()
+			time.Sleep(30 * time.Second)
+		}
+	}()
+
+	// Discover peers periodically
+	go func() {
+		for {
+			ctxFind, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+			peerChan := kad.FindProvidersAsync(ctxFind, announceKey, 10)
+			for p := range peerChan {
+				if p.ID != node.ID() {
+					log.Printf("Discovered peer: %s\n", p.ID.String())
+					node.Peerstore().AddAddrs(p.ID, p.Addrs, time.Hour)
+				}
+			}
+			cancel()
+			time.Sleep(15 * time.Second)
+		}
+	}()
 
 	return node, kad
 }

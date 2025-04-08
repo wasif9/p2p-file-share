@@ -246,7 +246,7 @@ func (upload *UploadUI) UploadFile() {
 	fileSize, err := GetFileSize(filePath)
 	if err != nil {
 		log.Println("Error getting file size:", err)
-		PopupMessage("Canoot upload file \ndue to file corruption")
+		PopupMessage("Cannot upload file \ndue to file corruption")
 		return
 	}
 	log.Println("File Size =", strconv.FormatInt(fileSize, 10), "bytes")
@@ -255,7 +255,7 @@ func (upload *UploadUI) UploadFile() {
 	cid, err := cidFromFile(filePath)
 	if err != nil {
 		log.Println("Error generating CID from file:", err)
-		PopupMessage("Canoot upload file \ndue to file corruption")
+		PopupMessage("Cannot upload file \ndue to file corruption")
 		return
 	}
 	log.Println("CID =", cid.String())
@@ -264,7 +264,7 @@ func (upload *UploadUI) UploadFile() {
 	ctx := context.Background()
 	if err := upload.kadDHT.Provide(ctx, cid, true); err != nil {
 		log.Println("Error providing CID to DHT:", err)
-		PopupMessage("Canoot upload file \ndue to DHT error")
+		PopupMessage("Cannot upload file \ndue to DHT error")
 		return
 	}
 	log.Println("Successfully provided CID to DHT:", cid.String())
@@ -280,7 +280,7 @@ func (upload *UploadUI) UploadFile() {
 	jsonData, err := json.Marshal(manifest)
 	if err != nil {
 		log.Println("Error encoding JSON:", err)
-		PopupMessage("Canoot upload file \ndue to JSON type error")
+		PopupMessage("Cannot upload file \ndue to JSON type error")
 		return
 	}
 
@@ -295,7 +295,7 @@ func (upload *UploadUI) UploadFile() {
 	req, err := http.NewRequestWithContext(ctx, "POST", "http://"+reverseProxyAddr+postReq, bytes.NewBuffer(jsonData))
 	if err != nil {
 		log.Println("Error creating POST request:", err)
-		PopupMessage("Canoot upload file \ndue to POST request failure")
+		PopupMessage("Cannot upload file \ndue to POST request failure")
 		return
 	}
 	req.Header.Set("Content-Type", "application/json")
@@ -303,9 +303,9 @@ func (upload *UploadUI) UploadFile() {
 	resp, err := http.DefaultClient.Do(req)
 	if err != nil {
 		if ctx.Err() == context.DeadlineExceeded {
-			PopupMessage("Canoot upload file \ndue to busy servers")
+			PopupMessage("Cannot upload file \ndue to busy servers")
 		} else {
-			PopupMessage("Canoot upload file \ndue to proxy error")
+			PopupMessage("Cannot upload file \ndue to proxy error")
 		}
 		log.Println("Error sending POST request:", err)
 		return
@@ -321,10 +321,10 @@ func (upload *UploadUI) UploadFile() {
 	log.Println("Resp Status:", resp.Status)
 	log.Println("Resp Body:", string(respSer))
 
-	if resp.Status == "201 Created" {
+	if resp.StatusCode == http.StatusCreated {
 		PopupMessage("Uploaded & Provided: " + fileName)
 	} else {
-		PopupMessage("Cannot upload file \ndue to server error")
+		PopupMessage("Cannot upload file \ndue to server error: \n" + string(respSer))
 	}
 }
 
