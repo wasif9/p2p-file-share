@@ -56,7 +56,7 @@ func monitorLeader(db *gorm.DB) {
 	}
 }
 
-func catchup(myTimestamp uint) {
+func catchup(myTimestamp int) {
 	log.Println("catching up to leader...")
 	client := &http.Client{Timeout: time.Second * 2}
 
@@ -116,7 +116,10 @@ func election() {
 
 	client := &http.Client{Timeout: time.Second * 2}
 
-	timestamps := make([]uint, len(allConfigs))
+	timestamps := make([]int, len(allConfigs))
+	for i := range timestamps {
+		timestamps[i] = -1
+	}
 
 	// poll everyone for their heartbeat to get the latest timestamp
 	for _, peerNodeConfig := range allConfigs {
@@ -143,12 +146,17 @@ func election() {
 	}
 
 	// find the node with the highest timestamp
-	highestTimestamp := uint(0)
+	highestTimestamp := int(0)
 	highestIndex := cfg.Index
 	for nodeIndex, timestamp := range timestamps {
-		if timestamp > highestTimestamp { // since this is >, ties will be broken by the node index (lower index wins)
+		if timestamp > highestTimestamp { // the node with higher timestamp wins 
 			highestTimestamp = timestamp
 			highestIndex = nodeIndex
+		} else if timestamp == highestTimestamp {
+			if nodeIndex < highestIndex { // tie break by the node index id when two nodes have the same timestamps
+				highestTimestamp = timestamp
+				highestIndex = nodeIndex
+			}
 		}
 	}
 	if highestIndex == -1 {
@@ -209,9 +217,9 @@ func notifyReverseProxy(leaderIndex int) {
 	log.Println("reverse-proxy successfully updated")
 }
 
-func getTimestamp(db *gorm.DB) uint {
+func getTimestamp(db *gorm.DB) int {
 
-	var timestamp uint
+	var timestamp int
 
 	err = db.Model(&types.Manifest{}).Select("COALESCE(MAX(timestamp), 0)").Scan(&timestamp).Error
 	if err != nil {

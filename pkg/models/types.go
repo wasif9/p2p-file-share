@@ -19,7 +19,7 @@ type Heartbeat struct {
 	Index       int           `json:"node-index"`
 	Uptime      time.Duration `json:"uptime"`
 	LeaderIndex int           `json:"leader-index"`
-	Timestamp   uint          `json:"timestamp"`
+	Timestamp   int          `json:"timestamp"`
 }
 
 type DbMgrConfig struct {
