@@ -60,6 +60,8 @@ func (upload *UploadUI) LoadFiles() {
 	files, err := os.ReadDir(upload.dirPath)
 	if err != nil {
 		log.Println("Error reading directory:", err)
+		PopupMessage("Cannot read current directory!")
+		upload.files = nil
 		return
 	}
 	// Sort: directories first, then files
