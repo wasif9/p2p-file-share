@@ -2,7 +2,6 @@ package main
 
 import (
 	"context"
-	"fmt"
 	"log"
 	"os"
 
@@ -71,11 +70,11 @@ func main() {
 	}
 
 	// Display your bootstrap node's multiaddrs clearly
-	fmt.Println("🌟 Bootstrap Node running successfully! ✅")
-	fmt.Println("Peer ID:", node.ID())
-	fmt.Println("Bootstrap multiaddrs:")
+	log.Println("🌟 Bootstrap Node running successfully! ✅")
+	log.Println("Peer ID:", node.ID())
+	log.Println("Bootstrap multiaddrs:")
 	for _, addr := range node.Addrs() {
-		fmt.Printf("%s/p2p/%s\n", addr, node.ID())
+		log.Printf("%s/p2p/%s\n", addr, node.ID())
 	}
 
 	// Prevent the application from exiting (keep alive)

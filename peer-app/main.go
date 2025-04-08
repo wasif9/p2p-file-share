@@ -90,15 +90,15 @@ func main() {
 	// go func() {
 	// 	for {
 	// 		peers := node.Peerstore().Peers()
-	// 		fmt.Println("Known peers:", peers)
+	// 		log.Println("Known peers:", peers)
 	// 		time.Sleep(5 * time.Second) // Print every 5 seconds
-	// 		fmt.Println("dht size for node:", node.ID(), kad.RoutingTable().Size())
+	// 		log.Println("dht size for node:", node.ID(), kad.RoutingTable().Size())
 	// 	}
 	// }()
 
-	fmt.Println("Node ID:", node.ID())
+	log.Println("Node ID:", node.ID())
 	for _, addr := range node.Addrs() {
-		fmt.Println(" -", addr, "/p2p/", node.ID())
+		log.Println(" -", addr, "/p2p/", node.ID())
 	}
 
 	// 2) Handle inbound file requests on our protocol
@@ -208,7 +208,7 @@ func setupNode(ctx context.Context, bootstrapAddr string) (host.Host, *dht.IpfsD
 
 	// 4) If we have a bootstrap multiaddr, connect to it
 	if bootstrapAddr != "" {
-		fmt.Println("Dialing bootstrap:", bootstrapAddr)
+		log.Println("Dialing bootstrap:", bootstrapAddr)
 		ma, err := multiaddr.NewMultiaddr(bootstrapAddr)
 		if err != nil {
 			log.Fatalf("Invalid bootstrap address: %s", err)
@@ -222,17 +222,17 @@ func setupNode(ctx context.Context, bootstrapAddr string) (host.Host, *dht.IpfsD
 		if err := node.Connect(ctx, *info); err != nil {
 			log.Fatalf("Failed to connect to bootstrap: %s", err)
 		}
-		fmt.Println("Connected to bootstrap!")
+		log.Println("Connected to bootstrap!")
 		// Explicitly call FindPeer to populate your local routing table
 		// ctx, cancel := context.WithTimeout(ctx, time.Second*10)
 		// defer cancel()
 
-		// fmt.Println("Populating routing table...")
+		// log.Println("Populating routing table...")
 		// peerInfo, err := kad.FindPeer(ctx, info.ID)
 		// if err != nil {
 		// 	log.Printf("FindPeer error (might be okay initially): %v\n", err)
 		// } else {
-		// 	fmt.Printf("Peer found: %v\n", peerInfo)
+		// 	log.Printf("Peer found: %v\n", peerInfo)
 		// }
 		// Announce your node's presence clearly:
 		announceKey, err := cidFromString("/myapp/peers")
@@ -309,7 +309,7 @@ func handleFileRequest(s network.Stream) {
 
 	// Construct file path based on peer's directory
 	filePath := filepath.Join(dataDir, requestedFile)
-	fmt.Println("File path:", filePath)
+	log.Println("File path:", filePath)
 
 	// Check if file exists
 	if _, err := os.Stat(filePath); os.IsNotExist(err) {

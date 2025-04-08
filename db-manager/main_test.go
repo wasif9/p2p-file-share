@@ -1,24 +1,24 @@
 package main
 
 import (
-	"fmt"
+	"log"
 	"net/http"
 	"os"
 	"testing"
 )
 
 func TestMain(m *testing.M) {
-	fmt.Println("Setup: Add any setup below...")
+	log.Println("Setup: Add any setup below...")
 
 	// Run all tests
 	code := m.Run()
 
-	fmt.Println("Teardown: Add any teardown below...")
+	log.Println("Teardown: Add any teardown below...")
 	os.Exit(code)
 }
 
 func TestHttpGet(t *testing.T) {
-	fmt.Println("testing http get!")
+	log.Println("testing http get!")
 	// t.Error("This fails TestHttpGet() but continues execution")
 	// t.Fatal("This fails TestHttpGet() and halts execution")
 

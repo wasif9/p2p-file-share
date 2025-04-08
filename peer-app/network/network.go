@@ -2,7 +2,6 @@ package network
 
 import (
 	"context"
-	"fmt"
 	"log"
 
 	"github.com/libp2p/go-libp2p/core/host"
@@ -26,5 +25,5 @@ func ConnectToPeer(node host.Host, targetAddr string) {
 		log.Fatal("Failed to connect:", err)
 	}
 
-	fmt.Println("Connected to:", peerInfo.ID.String())
+	log.Println("Connected to:", peerInfo.ID.String())
 }
