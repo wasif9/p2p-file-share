@@ -2,7 +2,6 @@ package messaging
 
 import (
 	"context"
-	"fmt"
 	"log"
 
 	"github.com/libp2p/go-libp2p/core/host"
@@ -21,7 +20,7 @@ func HandleMessages(node host.Host) {
 			log.Println("Failed to read:", err)
 			return
 		}
-		fmt.Println("Received message:", string(buf[:n]))
+		log.Println("Received message:", string(buf[:n]))
 	})
 }
 
@@ -37,5 +36,5 @@ func SendMessage(node host.Host, peerID peer.ID, message string) {
 	if err != nil {
 		log.Fatal("Failed to send message:", err)
 	}
-	fmt.Println("Message sent:", message)
+	log.Println("Message sent:", message)
 }

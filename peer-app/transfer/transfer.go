@@ -2,7 +2,6 @@ package transfer
 
 import (
 	"context"
-	"fmt"
 	"io"
 	"log"
 	"os"
@@ -32,13 +31,13 @@ func SendFile(node host.Host, peerID peer.ID, filePath string) {
 	defer s.Close()
 
 	// Send the file
-	fmt.Println("Sending file:", filePath)
+	log.Println("Sending file:", filePath)
 	_, err = io.Copy(s, file)
 	if err != nil {
 		log.Fatal("Failed to send file:", err)
 	}
 
-	fmt.Println("File sent successfully!")
+	log.Println("File sent successfully!")
 }
 
 // HandleFileRequests listens for incoming file requests and sends files
@@ -55,13 +54,13 @@ func HandleFileRequests(node host.Host) {
 		defer file.Close()
 
 		// Receive the file and save it
-		fmt.Println("Receiving file...")
+		log.Println("Receiving file...")
 		_, err = io.Copy(file, s)
 		if err != nil {
 			log.Println("Failed to receive file:", err)
 			return
 		}
 
-		fmt.Println("File received successfully and saved as 'received_myfile.txt'")
+		log.Println("File received successfully and saved as 'received_myfile.txt'")
 	})
 }
