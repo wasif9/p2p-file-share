@@ -11,13 +11,14 @@ import (
 	"time"
 
 	types "github.com/wasif9/p2p-file-share/pkg/models"
+	"gorm.io/gorm"
 )
 
 var leaderIndex int = -1
 
-func monitorLeader() {
+func monitorLeader(db *gorm.DB) {
 	for true {
-		time.Sleep(time.Second * 5)
+		time.Sleep(time.Second * 10)
 
 		if leaderIndex == -1 {
 			log.Println("leader index is unset, calling election")
@@ -46,19 +47,21 @@ func monitorLeader() {
 		}
 		log.Printf("leader %d timestamp: %v\n", heartbeat.Index, heartbeat.Timestamp)
 
+		timestamp := getTimestamp(db)
+
 		if heartbeat.Timestamp > timestamp {
 			log.Printf("leader heartbeat is newer than mine (%v > %v)\n", heartbeat.Timestamp, timestamp)
-			catchup(heartbeat.Timestamp)
+			catchup(timestamp)
 		}
 	}
 }
 
-func catchup(leaderTimestamp uint) {
+func catchup(myTimestamp uint) {
 	log.Println("catching up to leader...")
 	client := &http.Client{Timeout: time.Second * 2}
 
 	resp, err := client.Post(
-		fmt.Sprintf("http://%s/api/v1/catchup?timestamp=%d", allConfigs[leaderIndex].Address, timestamp),
+		fmt.Sprintf("http://%s/api/v1/catchup?timestamp=%d", allConfigs[leaderIndex].Address, myTimestamp),
 		"", bytes.NewBuffer([]byte(strconv.Itoa(cfg.Index))),
 	)
 	if err != nil {
@@ -140,7 +143,7 @@ func election() {
 	}
 
 	// find the node with the highest timestamp
-	highestTimestamp := timestamp
+	highestTimestamp := uint(0)
 	highestIndex := cfg.Index
 	for nodeIndex, timestamp := range timestamps {
 		if timestamp > highestTimestamp { // since this is >, ties will be broken by the node index (lower index wins)
@@ -204,4 +207,15 @@ func notifyReverseProxy(leaderIndex int) {
 	}
 
 	log.Println("reverse-proxy successfully updated")
+}
+
+func getTimestamp(db *gorm.DB) uint {
+
+	var timestamp uint
+
+	err = db.Model(&types.Manifest{}).Select("COALESCE(MAX(timestamp), 0)").Scan(&timestamp).Error
+	if err != nil {
+		log.Fatal(err)
+	}
+	return timestamp
 }
