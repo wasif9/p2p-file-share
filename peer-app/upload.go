@@ -106,7 +106,7 @@ func (upload *UploadUI) UploadLayout(gtx layout.Context, th *material.Theme) lay
 						btn := material.Button(th, &upload.backBtn, "🢨")
 						btn.TextSize = 25
 						if upload.backBtn.Clicked(gtx) {
-							upload.NavigateUp()
+							upload.navigateUp()
 						}
 						return btn.Layout(gtx)
 					})
@@ -115,13 +115,7 @@ func (upload *UploadUI) UploadLayout(gtx layout.Context, th *material.Theme) lay
 				layout.Flexed(1, func(gtx layout.Context) layout.Dimensions {
 					inset := layout.Inset{Top: 10, Bottom: 10, Left: 20, Right: 20}
 					return inset.Layout(gtx, func(gtx layout.Context) layout.Dimensions {
-						pwd, err := os.Getwd()
-						if err != nil {
-							log.Println("Error when getting current directory", err)
-							pwd = ""
-						}
-						pwd = filepath.Join(pwd, upload.dirPath)
-						label := material.Label(th, th.TextSize, pwd)
+						label := material.Label(th, th.TextSize, upload.dirPath)
 						label.Alignment = text.Start
 						return label.Layout(gtx)
 					})
@@ -146,7 +140,7 @@ func (upload *UploadUI) UploadLayout(gtx layout.Context, th *material.Theme) lay
 				if i >= len(upload.files) {
 					return layout.Dimensions{}
 				}
-				return upload.FileLayout(gtx, th, i)
+				return upload.fileLayout(gtx, th, i)
 			})
 		}),
 		// Divider
@@ -168,7 +162,7 @@ func (upload *UploadUI) UploadLayout(gtx layout.Context, th *material.Theme) lay
 					return inset.Layout(gtx, func(gtx layout.Context) layout.Dimensions {
 						btn := material.Button(th, &upload.confirmBtn, "Upload")
 						if upload.confirmBtn.Clicked(gtx) {
-							upload.UploadFile()
+							upload.uploadFile()
 						}
 						return btn.Layout(gtx)
 					})
@@ -179,7 +173,7 @@ func (upload *UploadUI) UploadLayout(gtx layout.Context, th *material.Theme) lay
 }
 
 // FileLayout lays out a single file/folder row in the list
-func (upload *UploadUI) FileLayout(gtx layout.Context, th *material.Theme, i int) layout.Dimensions {
+func (upload *UploadUI) fileLayout(gtx layout.Context, th *material.Theme, i int) layout.Dimensions {
 	file := upload.files[i]
 	btn := &upload.fileBtns[i]
 	label := file.Name()
@@ -204,7 +198,7 @@ func (upload *UploadUI) FileLayout(gtx layout.Context, th *material.Theme, i int
 
 				if btn.Clicked(gtx) {
 					if file.IsDir() {
-						upload.NavigateTo(file.Name())
+						upload.navigateTo(file.Name())
 					} else {
 						upload.selected = file
 						log.Println("Selected File:", file.Name())
@@ -217,13 +211,13 @@ func (upload *UploadUI) FileLayout(gtx layout.Context, th *material.Theme, i int
 }
 
 // NavigateTo goes deeper into a subdirectory
-func (upload *UploadUI) NavigateTo(dir string) {
+func (upload *UploadUI) navigateTo(dir string) {
 	upload.dirPath = filepath.Join(upload.dirPath, dir)
 	upload.LoadFiles()
 }
 
 // NavigateUp moves up one directory
-func (upload *UploadUI) NavigateUp() {
+func (upload *UploadUI) navigateUp() {
 	if upload.dirPath != dataDir {
 		upload.dirPath = filepath.Dir(upload.dirPath)
 		upload.LoadFiles()
@@ -234,7 +228,7 @@ func (upload *UploadUI) NavigateUp() {
 // 1) Generates CID from file data.
 // 2) Provides the CID to the Kademlia DHT, ensuring peer discoverability.
 // 3) If successful, posts the manifest (with CID) to the load balancer/DB.
-func (upload *UploadUI) UploadFile() {
+func (upload *UploadUI) uploadFile() {
 	if upload.selected == nil {
 		PopupMessage("No file is selected!")
 		return
@@ -245,7 +239,7 @@ func (upload *UploadUI) UploadFile() {
 	log.Println("File Path =", filePath)
 
 	// 1) Get file size
-	fileSize, err := GetFileSize(filePath)
+	fileSize, err := getFileSize(filePath)
 	if err != nil {
 		log.Println("Error getting file size:", err)
 		PopupMessage("Cannot upload file \ndue to file corruption")
@@ -331,7 +325,7 @@ func (upload *UploadUI) UploadFile() {
 }
 
 // Helper: get file size
-func GetFileSize(filePath string) (int64, error) {
+func getFileSize(filePath string) (int64, error) {
 	fileInfo, err := os.Stat(filePath)
 	if err != nil {
 		return -1, err

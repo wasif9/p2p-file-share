@@ -77,7 +77,7 @@ func (ui *DownloadUI) DownloadLayout(gtx layout.Context, th *material.Theme, prg
 						// Detect Enter pressed
 						if e, ok := ui.searchInput.Update(gtx); ok {
 							if _, isSubmit := e.(widget.SubmitEvent); isSubmit {
-								go ui.PerformSearch()
+								go ui.performSearch()
 							}
 						}
 
@@ -91,7 +91,7 @@ func (ui *DownloadUI) DownloadLayout(gtx layout.Context, th *material.Theme, prg
 					return inset.Layout(gtx, func(gtx layout.Context) layout.Dimensions {
 						btn := material.Button(th, &ui.searchButton, "Search")
 						if ui.searchButton.Clicked(gtx) {
-							go ui.PerformSearch()
+							go ui.performSearch()
 						}
 						return btn.Layout(gtx)
 					})
@@ -126,13 +126,13 @@ func (ui *DownloadUI) DownloadLayout(gtx layout.Context, th *material.Theme, prg
 					}),
 				)
 			} else {
-				return ui.LayoutResults(gtx, th, prgUI)
+				return ui.layoutResults(gtx, th, prgUI)
 			}
 		}),
 	)
 }
 
-func (ui *DownloadUI) LayoutResults(gtx layout.Context, th *material.Theme, prgUI *ProgressUI) layout.Dimensions {
+func (ui *DownloadUI) layoutResults(gtx layout.Context, th *material.Theme, prgUI *ProgressUI) layout.Dimensions {
 	// When no result
 	if len(ui.results) == 0 {
 		return layout.Flex{Axis: layout.Vertical}.Layout(gtx,
@@ -201,7 +201,7 @@ func (ui *DownloadUI) LayoutResults(gtx layout.Context, th *material.Theme, prgU
 							// When download is clicked
 							if ui.downloadButton.Clicked(gtx) {
 								log.Println("Selected result:", ui.selectedResult)
-								ui.Download(prgUI)
+								ui.download(prgUI)
 							}
 							return btn.Layout(gtx)
 						})
@@ -213,7 +213,7 @@ func (ui *DownloadUI) LayoutResults(gtx layout.Context, th *material.Theme, prgU
 	})
 }
 
-func (ui *DownloadUI) PerformSearch() {
+func (ui *DownloadUI) performSearch() {
 	ui.loading = true
 	query := strings.TrimSpace(ui.searchInput.Text())
 
@@ -273,7 +273,7 @@ func (ui *DownloadUI) PerformSearch() {
 	ui.loading = false
 }
 
-func (ui *DownloadUI) Download(prgUI *ProgressUI) {
+func (ui *DownloadUI) download(prgUI *ProgressUI) {
 	go func() {
 		fileName := ui.selectedResult.Name
 
