@@ -22,7 +22,7 @@ func MainLayout(gtx layout.Context, th *material.Theme, dnUI *DownloadUI, upUI *
 		}),
 		// Right side: whichever tab is selected
 		layout.Flexed(1, func(gtx layout.Context) layout.Dimensions {
-			switch tabSelected {
+			switch TabSelected {
 			case DownloadTab:
 				return dnUI.DownloadLayout(gtx, th, prUI)
 			case UploadTab:
@@ -53,7 +53,7 @@ func tab_Btn(th *material.Theme, button *widget.Clickable, title string, tab int
 
 			// Click event
 			if (*button).Clicked(gtx) {
-				tabSelected = tab
+				TabSelected = tab
 			}
 
 			return btn.Layout(gtx)

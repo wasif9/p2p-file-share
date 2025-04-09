@@ -219,11 +219,11 @@ func (ui *DownloadUI) performSearch() {
 
 	// Make GET request to the load balancer server
 	getReq := "/api/" + DBManagerVer + "/manifests?prefix=" + query
-	log.Println("Send GET " + getReq + " to " + reverseProxyAddr)
+	log.Println("Send GET " + getReq + " to " + ReverseProxyAddr)
 
 	// Send GET requet
 	reverseProxy := &http.Client{Timeout: time.Second * 2}
-	resp, err := reverseProxy.Get("http://" + reverseProxyAddr + getReq)
+	resp, err := reverseProxy.Get("http://" + ReverseProxyAddr + getReq)
 	if err != nil {
 		if netErr, ok := err.(net.Error); ok && netErr.Timeout() {
 			PopupMessage("Cannot search files \ndue to busy servers")
@@ -284,16 +284,16 @@ func (ui *DownloadUI) download(prgUI *ProgressUI) {
 		}
 
 		// Add file to the progress page
-		tabSelected = ProgressTab
+		TabSelected = ProgressTab
 		downloadFile := prgUI.AddDownload(fileName, ui.selectedResult.Hash)
 
 		// Make GET request to the load balancer server
 		getReq := "/api/" + DBManagerVer + "/manifests/" + fileName
-		log.Println("Send GET " + getReq + " to " + reverseProxyAddr)
+		log.Println("Send GET " + getReq + " to " + ReverseProxyAddr)
 
 		// Send GET requet
 		reverseProxy := &http.Client{Timeout: time.Second * 2}
-		resp, err := reverseProxy.Get("http://" + reverseProxyAddr + getReq)
+		resp, err := reverseProxy.Get("http://" + ReverseProxyAddr + getReq)
 		if err != nil {
 			if netErr, ok := err.(net.Error); ok && netErr.Timeout() {
 				PopupMessage("Cannot download file \ndue to busy servers")
@@ -359,7 +359,7 @@ func requestFile(node host.Host, providerID peer.ID, fileName string, dirPath st
 	// Log which peer we're contacting
 	log.Println("Attempting to request file from provider:", providerID.String())
 
-	s, err := node.NewStream(ctx, providerID, protocol)
+	s, err := node.NewStream(ctx, providerID, Protocol)
 	if err != nil {
 		return err
 	}

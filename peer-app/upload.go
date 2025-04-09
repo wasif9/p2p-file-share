@@ -218,7 +218,7 @@ func (upload *UploadUI) navigateTo(dir string) {
 
 // NavigateUp moves up one directory
 func (upload *UploadUI) navigateUp() {
-	if upload.dirPath != dataDir {
+	if upload.dirPath != DataDir {
 		upload.dirPath = filepath.Dir(upload.dirPath)
 		upload.LoadFiles()
 	}
@@ -282,13 +282,13 @@ func (upload *UploadUI) uploadFile() {
 
 	// 6) POST manifest JSON to load balancer
 	postReq := "/api/" + DBManagerVer + "/manifests"
-	log.Println("Sending POST", postReq, "to", reverseProxyAddr)
+	log.Println("Sending POST", postReq, "to", ReverseProxyAddr)
 
 	// Set timeout for whole POST request
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second*2)
 	defer cancel()
 
-	req, err := http.NewRequestWithContext(ctx, "POST", "http://"+reverseProxyAddr+postReq, bytes.NewBuffer(jsonData))
+	req, err := http.NewRequestWithContext(ctx, "POST", "http://"+ReverseProxyAddr+postReq, bytes.NewBuffer(jsonData))
 	if err != nil {
 		log.Println("Error creating POST request:", err)
 		PopupMessage("Cannot upload file \ndue to POST request failure")

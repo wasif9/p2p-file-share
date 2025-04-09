@@ -33,13 +33,13 @@ const (
 )
 const (
 	DBManagerVer = "v1"
-	protocol     = "/file-sharing/1.0.0"
+	Protocol     = "/file-sharing/1.0.0"
 )
 
 var (
-	tabSelected      = DownloadTab
-	dataDir          string
-	reverseProxyAddr string
+	TabSelected      = DownloadTab
+	DataDir          string
+	ReverseProxyAddr string
 	PWD              string
 )
 
@@ -60,7 +60,7 @@ func init() {
 		log.Fatal(err)
 	}
 
-	reverseProxyAddr = superConfig.RpConfig.Address
+	ReverseProxyAddr = superConfig.RpConfig.Address
 
 	// Get Current work directory
 	PWD, err = os.Getwd()
@@ -97,7 +97,7 @@ func main() {
 	}
 
 	// 2) Handle inbound file requests on our protocol
-	node.SetStreamHandler(protocol, handleFileRequest)
+	node.SetStreamHandler(Protocol, handleFileRequest)
 
 	// 3) GUI
 	go runGUI(node, kad)
@@ -178,7 +178,7 @@ func runGUI(node host.Host, kad *dht.IpfsDHT) {
 					dnUI.dirPath = selectDir_Dn.dirPath
 					upUI.dirPath = selectDir_Up.dirPath
 					upUI.LoadFiles()
-					dataDir = selectDir_Up.dirPath
+					DataDir = selectDir_Up.dirPath
 					set = true
 				}
 				MainLayout(gtx, th, dnUI, upUI, prUI, tabButtons)
@@ -309,7 +309,8 @@ func handleFileRequest(s network.Stream) {
 	log.Println("Received request for file:", requestedFile)
 
 	// Construct file path based on peer's directory
-	filePath := filepath.Join(dataDir, requestedFile)
+	// ! Race condition? DataDir is set after user selection
+	filePath := filepath.Join(DataDir, requestedFile)
 	log.Println("File path:", filePath)
 
 	// Check if file exists
