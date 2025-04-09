@@ -32,12 +32,12 @@ const (
 	ProgressTab
 )
 const (
-	DBManagerVer = "v1"
-	Protocol     = "/file-sharing/1.0.0"
+	Protocol = "/file-sharing/1.0.0"
 )
 
 var (
 	TabSelected      = DownloadTab
+	DBManagerVer     string
 	DataDir          string
 	ReverseProxyAddr string
 	PWD              string
@@ -61,6 +61,11 @@ func init() {
 	}
 
 	ReverseProxyAddr = superConfig.RpConfig.Address
+
+	if len(superConfig.DbManagerConfigs) < 1 {
+		log.Fatalf("There is no db-manager in %s", os.Args[1])
+	}
+	DBManagerVer = superConfig.DbManagerConfigs[0].Version
 
 	// Get Current work directory
 	PWD, err = os.Getwd()
