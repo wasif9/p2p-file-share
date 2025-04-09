@@ -11,6 +11,24 @@
       "pg-user": "postgres",
       "pg-password": "password",
       "pg-port": "5432"
+    },
+    {
+      "index": 1,
+      "address": "localhost:8081",
+      "version": "v1",
+      "pg-host": "localhost",
+      "pg-user": "postgres",
+      "pg-password": "password",
+      "pg-port": "5432"
+    },
+    {
+      "index": 2,
+      "address": "localhost:8082",
+      "version": "v1",
+      "pg-host": "localhost",
+      "pg-user": "postgres",
+      "pg-password": "password",
+      "pg-port": "5432"
     }
   ]
 }
