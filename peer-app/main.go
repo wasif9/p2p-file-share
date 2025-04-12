@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"crypto/rand"
 	"encoding/json"
 	"log"
 	"os"
@@ -19,6 +20,7 @@ import (
 	"github.com/joho/godotenv"
 	libp2p "github.com/libp2p/go-libp2p"
 	dht "github.com/libp2p/go-libp2p-kad-dht"
+	"github.com/libp2p/go-libp2p/core/crypto"
 	"github.com/libp2p/go-libp2p/core/host"
 	"github.com/libp2p/go-libp2p/core/network"
 	"github.com/libp2p/go-libp2p/core/peer"
@@ -196,24 +198,19 @@ func runGUI(node host.Host, kad *dht.IpfsDHT) {
 
 // setupNode creates a libp2p host + Kademlia DHT, optionally connects to a bootstrap node.
 func setupNode(ctx context.Context, bootstrapAddr string) (host.Host, *dht.IpfsDHT) {
-	// 1) Create a libp2p host
-	node, err := libp2p.New()
+	priv := loadOrGeneratePrivateKey()
+	node, err := libp2p.New(libp2p.Identity(priv))
 	if err != nil {
 		log.Fatal("Failed to create libp2p host:", err)
 	}
-
-	// 2) Create a DHT
 	kad, err := dht.New(ctx, node, dht.Mode(dht.ModeServer))
 	if err != nil {
 		log.Fatal("Failed to create DHT:", err)
 	}
-
-	// 3) Bootstrap the DHT
 	if err := kad.Bootstrap(ctx); err != nil {
 		log.Fatal("Failed to bootstrap DHT:", err)
 	}
 
-	// 4) If we have a bootstrap multiaddr, connect to it
 	log.Println("Dialing bootstrap:", bootstrapAddr)
 	ma, err := multiaddr.NewMultiaddr(bootstrapAddr)
 	if err != nil {
@@ -223,31 +220,15 @@ func setupNode(ctx context.Context, bootstrapAddr string) (host.Host, *dht.IpfsD
 	if err != nil {
 		log.Fatalf("AddrInfoFromP2pAddr failed: %s", err)
 	}
-
-	// Just call node.Connect(...), no need for (*host).Connect
 	log.Println("Connecting to bootstrap peer:", info.ID)
 	if err := node.Connect(ctx, *info); err != nil {
 		log.Fatalf("Failed to connect to bootstrap: %s", err)
 	}
-	log.Println("Connected to bootstrap!")
-	// Explicitly call FindPeer to populate your local routing table
-	// ctx, cancel := context.WithTimeout(ctx, time.Second*10)
-	// defer cancel()
 
-	// log.Println("Populating routing table...")
-	// peerInfo, err := kad.FindPeer(ctx, info.ID)
-	// if err != nil {
-	// 	log.Printf("FindPeer error (might be okay initially): %v\n", err)
-	// } else {
-	// 	log.Printf("Peer found: %v\n", peerInfo)
-	// }
-	// Announce your node's presence clearly:
 	announceKey, err := cidFromString("/myapp/peers")
 	if err != nil {
 		log.Fatalf("Error creating CID: %v", err)
 	}
-
-	// Announce your node periodically
 	go func() {
 		for {
 			ctxProvide, cancel := context.WithTimeout(context.Background(), 10*time.Second)
@@ -258,14 +239,18 @@ func setupNode(ctx context.Context, bootstrapAddr string) (host.Host, *dht.IpfsD
 			time.Sleep(30 * time.Second)
 		}
 	}()
-
-	// Discover peers periodically
 	go func() {
 		for {
 			ctxFind, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 			peerChan := kad.FindProvidersAsync(ctxFind, announceKey, 10)
 			for p := range peerChan {
 				if p.ID != node.ID() {
+					//log.Printf("Discovered peer: %s\n", p.ID.String())
+					err := node.Connect(ctx, p)
+					if err != nil {
+						//log.Printf("Failed to connect to %s: %v", p.ID, err)
+						continue
+					}
 					log.Printf("Discovered peer: %s\n", p.ID.String())
 					node.Peerstore().AddAddrs(p.ID, p.Addrs, time.Hour)
 				}
@@ -300,6 +285,33 @@ func setupNode(ctx context.Context, bootstrapAddr string) (host.Host, *dht.IpfsD
 //		s.Write(data)
 //		log.Printf("Sent file: %s\n", fileName)
 //	}
+
+func loadOrGeneratePrivateKey() crypto.PrivKey {
+	//var keyFilePath = filepath.Join(dataDir, "peer.key")
+	var keyFilePath = "./p2p/peer.key"
+	if keyData, err := os.ReadFile(keyFilePath); err == nil {
+		key, err := crypto.UnmarshalPrivateKey(keyData)
+		if err != nil {
+			log.Fatalf("Failed to unmarshal saved private key: %v", err)
+		}
+		return key
+	}
+	priv, _, err := crypto.GenerateEd25519Key(rand.Reader)
+	if err != nil {
+		log.Fatalf("Failed to generate private key: %v", err)
+	}
+	keyBytes, err := crypto.MarshalPrivateKey(priv)
+	if err != nil {
+		log.Fatalf("Failed to marshal private key: %v", err)
+	}
+	if err := os.MkdirAll(filepath.Dir(keyFilePath), 0755); err != nil {
+		log.Fatalf("Failed to create key dir: %v", err)
+	}
+	if err := os.WriteFile(keyFilePath, keyBytes, 0600); err != nil {
+		log.Fatalf("Failed to write private key: %v", err)
+	}
+	return priv
+}
 func handleFileRequest(s network.Stream) {
 	defer func() {
 		if err := s.Close(); err != nil {
