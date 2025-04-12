@@ -66,7 +66,7 @@ func (ui *ProgressUI) ProgressLayout(gtx layout.Context, th *material.Theme) lay
 
 						// Action when click delete button
 						if ui.deleteBtn.Clicked(gtx) {
-							ui.DeleteCheckedFiles()
+							ui.deleteCheckedFiles()
 						}
 
 						return btn.Layout(gtx)
@@ -88,7 +88,7 @@ func (ui *ProgressUI) ProgressLayout(gtx layout.Context, th *material.Theme) lay
 					}
 
 					return inset.Layout(gtx, func(gtx layout.Context) layout.Dimensions {
-						return ui.LayoutDownloadItem(gtx, th, &ui.files[i])
+						return ui.layoutDownloadItem(gtx, th, &ui.files[i])
 					})
 				} else {
 					return layout.Dimensions{}
@@ -99,7 +99,7 @@ func (ui *ProgressUI) ProgressLayout(gtx layout.Context, th *material.Theme) lay
 }
 
 // Layout of downloading files
-func (ui *ProgressUI) LayoutDownloadItem(gtx layout.Context, th *material.Theme, file *Download) layout.Dimensions {
+func (ui *ProgressUI) layoutDownloadItem(gtx layout.Context, th *material.Theme, file *Download) layout.Dimensions {
 	return layout.Flex{Axis: layout.Horizontal}.Layout(gtx,
 		// Checkbox
 		layout.Rigid(func(gtx layout.Context) layout.Dimensions {
@@ -152,7 +152,7 @@ func (ui *ProgressUI) IsInDownload(name string, hash string) bool {
 }
 
 // Remove all checked downloads
-func (ui *ProgressUI) DeleteCheckedFiles() {
+func (ui *ProgressUI) deleteCheckedFiles() {
 	for i := range ui.files {
 		// Let checked file not to be shown in the list
 		if ui.files[i].Checked.Value {

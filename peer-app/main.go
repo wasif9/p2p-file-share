@@ -3,9 +3,6 @@ package main
 import (
 	"context"
 	"encoding/json"
-	"flag"
-	"fmt"
-	"image/color"
 	"log"
 	"os"
 	"path/filepath"
@@ -35,14 +32,15 @@ const (
 	ProgressTab
 )
 const (
-	DBManagerVer = "v1"
-	protocol     = "/file-sharing/1.0.0"
+	Protocol = "/file-sharing/1.0.0"
 )
 
 var (
-	tabSelected      = DownloadTab
-	dataDir          string
-	reverseProxyAddr string
+	TabSelected      = DownloadTab
+	DBManagerVer     string
+	DataDir          string
+	ReverseProxyAddr string
+	PWD              string
 )
 
 func init() {
@@ -62,7 +60,18 @@ func init() {
 		log.Fatal(err)
 	}
 
-	reverseProxyAddr = superConfig.RpConfig.Address
+	ReverseProxyAddr = superConfig.RpConfig.Address
+
+	if len(superConfig.DbManagerConfigs) < 1 {
+		log.Fatalf("There is no db-manager in %s", os.Args[1])
+	}
+	DBManagerVer = superConfig.DbManagerConfigs[0].Version
+
+	// Get Current work directory
+	PWD, err = os.Getwd()
+	if err != nil {
+		log.Fatal("Error when getting current directory", err)
+	}
 }
 
 func main() {
@@ -75,17 +84,6 @@ func main() {
 	}
 
 	ctx := context.Background()
-	flag.StringVar(&dataDir, "data-dir", "", "Directory to store peer files")
-	flag.Parse()
-	if dataDir == "" {
-		// If not specified, pick a default or unique name
-		dataDir = fmt.Sprintf("peer_data_%d", os.Getpid())
-	}
-	// Create the folder if it doesn’t exist
-	err := os.MkdirAll(dataDir, 0755)
-	if err != nil {
-		log.Fatalf("Failed to create data dir: %v", err)
-	}
 
 	// 1) Create a new libp2p node + Kademlia DHT
 	node, kad := setupNode(ctx, bootstrapAddr)
@@ -104,7 +102,7 @@ func main() {
 	}
 
 	// 2) Handle inbound file requests on our protocol
-	node.SetStreamHandler(protocol, handleFileRequest)
+	node.SetStreamHandler(Protocol, handleFileRequest)
 
 	// 3) GUI
 	go runGUI(node, kad)
@@ -114,36 +112,51 @@ func main() {
 // GUI function
 func runGUI(node host.Host, kad *dht.IpfsDHT) {
 	w := new(app.Window)
-	w.Option(app.Title("P2P File Share"))
+	w.Option(app.Title("Peerify"))
 	w.Option(app.Size(unit.Dp(800), unit.Dp(600)))
 	th := material.NewTheme()
 	var ops op.Ops
+	set := false
 
-	// Make tab buttons
+	// Make mainUI tab buttons
 	tabButtons := make([]widget.Clickable, 3)
 
-	// Construct your DownloadUI, now with kadDHT
+	selectDir_Dn := &SelectUI{
+		title:   "Select a Folder for Storing Downloaded Files",
+		dirPath: PWD,
+		list: widget.List{
+			List: layout.List{Axis: layout.Vertical},
+		},
+		done: false,
+	}
+	selectDir_Dn.LoadDirs()
+
+	selectDir_Up := &SelectUI{
+		title:   "Select a Folder for Uploading Files",
+		dirPath: PWD,
+		list: widget.List{
+			List: layout.List{Axis: layout.Vertical},
+		},
+		done: false,
+	}
+	selectDir_Up.LoadDirs()
+
 	dnUI := &DownloadUI{
-		node:    node,
-		kadDHT:  kad,
-		dirPath: dataDir,
+		node:   node,
+		kadDHT: kad,
 		list: widget.List{
 			List: layout.List{Axis: layout.Vertical},
 		},
 		loading: false,
 	}
 	upUI := &UploadUI{
-		dirPath: dataDir,
-		node:    node,
-		kadDHT:  kad,
+		node:   node,
+		kadDHT: kad,
 		list: widget.List{
 			List: layout.List{Axis: layout.Vertical},
 		},
 	}
-	upUI.LoadFiles()
-	//upUI.LoadFilesAgain(node, kad)
 
-	// ProgressUI state instance
 	prUI := &ProgressUI{
 		list: widget.List{
 			List: layout.List{
@@ -161,29 +174,21 @@ func runGUI(node host.Host, kad *dht.IpfsDHT) {
 		case app.FrameEvent:
 			gtx := app.NewContext(&ops, e)
 
-			// Layout the tabs
-			layout.Flex{Axis: layout.Horizontal}.Layout(gtx,
-				// Left side: tab buttons
-				layout.Rigid(func(gtx layout.Context) layout.Dimensions {
-					return layout.Flex{Axis: layout.Vertical}.Layout(gtx,
-						tab_Btn(th, &tabButtons[0], "Download", DownloadTab),
-						tab_Btn(th, &tabButtons[1], "Upload", UploadTab),
-						tab_Btn(th, &tabButtons[2], "Progress", ProgressTab),
-					)
-				}),
-				// Right side: whichever tab is selected
-				layout.Flexed(1, func(gtx layout.Context) layout.Dimensions {
-					switch tabSelected {
-					case DownloadTab:
-						return dnUI.DownloadLayout(gtx, th, prUI)
-					case UploadTab:
-						return upUI.UploadLayout(gtx, th)
-					case ProgressTab:
-						return prUI.ProgressLayout(gtx, th)
-					}
-					return layout.Dimensions{}
-				}),
-			)
+			if !selectDir_Dn.done {
+				selectDir_Dn.SelectLayout(gtx, th)
+			} else if !selectDir_Up.done {
+				selectDir_Up.SelectLayout(gtx, th)
+			} else {
+				if !set {
+					dnUI.dirPath = selectDir_Dn.dirPath
+					upUI.dirPath = selectDir_Up.dirPath
+					upUI.LoadFiles()
+					DataDir = selectDir_Up.dirPath
+					set = true
+				}
+				MainLayout(gtx, th, dnUI, upUI, prUI, tabButtons)
+			}
+
 			e.Frame(gtx.Ops)
 		}
 	}
@@ -309,7 +314,8 @@ func handleFileRequest(s network.Stream) {
 	log.Println("Received request for file:", requestedFile)
 
 	// Construct file path based on peer's directory
-	filePath := filepath.Join(dataDir, requestedFile)
+	// ! Race condition? DataDir is set after user selection
+	filePath := filepath.Join(DataDir, requestedFile)
 	log.Println("File path:", filePath)
 
 	// Check if file exists
@@ -332,35 +338,4 @@ func handleFileRequest(s network.Stream) {
 		return
 	}
 	log.Println("Sent file:", requestedFile)
-}
-
-func tab_Btn(th *material.Theme, button *widget.Clickable, title string, tab int) layout.FlexChild {
-	return layout.Flexed(0.7, func(gtx layout.Context) layout.Dimensions {
-		// Padding
-		inset := layout.Inset{
-			Top:    10,
-			Right:  20,
-			Bottom: 10,
-			Left:   20,
-		}
-
-		// Apply the padding and layout the button
-		return inset.Layout(gtx, func(gtx layout.Context) layout.Dimensions {
-			btn := material.Button(th, button, title)
-
-			// Button property
-			gtx.Constraints.Min.X = gtx.Dp(120)
-			gtx.Constraints.Min.Y = gtx.Dp(80)
-			btn.TextSize = unit.Sp(20)
-			btn.Color = color.NRGBA{R: 0, G: 0, B: 0, A: 255}
-			btn.Background = color.NRGBA{R: 255, G: 255, B: 255, A: 255}
-
-			// Click event
-			if (*button).Clicked(gtx) {
-				tabSelected = tab
-			}
-
-			return btn.Layout(gtx)
-		})
-	})
 }

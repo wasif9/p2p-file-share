@@ -4,6 +4,7 @@ import (
 	"image/color"
 
 	"gioui.org/app"
+	"gioui.org/font"
 	"gioui.org/layout"
 	"gioui.org/op"
 	"gioui.org/unit"
@@ -32,10 +33,11 @@ func PopupMessage(message string) {
 						return layout.Flex{Axis: layout.Horizontal}.Layout(popupGtx,
 							layout.Flexed(1, func(popupGtx layout.Context) layout.Dimensions {
 								return layout.Center.Layout(popupGtx, func(popupGtx layout.Context) layout.Dimensions {
-									text := material.Body1(thPopup, message)
-									text.Color = color.NRGBA{R: 255, A: 255}
-									text.TextSize = unit.Sp(20)
-									return text.Layout(popupGtx)
+									msg := material.H3(thPopup, message)
+									msg.Font.Weight = font.Bold
+									msg.Color = color.NRGBA{R: 255, A: 255}
+									msg.TextSize = unit.Sp(20)
+									return msg.Layout(popupGtx)
 								})
 							}),
 						)
