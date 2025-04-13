@@ -19,7 +19,7 @@ jobs:
       fail-fast: true
       matrix:
         go: [1.24.1]
-        os: [ubuntu-latest, macos-latest, windows-latest]
+        os: [macos-latest, windows-latest]
 
     name: Run Go Linter
     runs-on: ${{ matrix.os }}
@@ -32,9 +32,6 @@ jobs:
         uses: actions/setup-go@v5
         with:
           go-version: ${{ matrix.go }}
-
-      - name: Download dependencies
-        run: go mod download
 
       - name: Install golangci-lint
         uses: golangci/golangci-lint-action@v7
