@@ -135,7 +135,7 @@ func (upload *UploadUI) UploadLayout(gtx layout.Context, th *material.Theme) lay
 		}),
 		// File List
 		layout.Flexed(1, func(gtx layout.Context) layout.Dimensions {
-			return upload.list.List.Layout(gtx, len(upload.files), func(gtx layout.Context, i int) layout.Dimensions {
+			return upload.list.Layout(gtx, len(upload.files), func(gtx layout.Context, i int) layout.Dimensions {
 				if i >= len(upload.files) {
 					return layout.Dimensions{}
 				}
@@ -305,7 +305,11 @@ func (upload *UploadUI) uploadFile() {
 		log.Println("Error sending POST request:", err)
 		return
 	}
-	defer resp.Body.Close()
+	defer func() {
+		if err := resp.Body.Close(); err != nil {
+			log.Fatal("Peer app error when close the POST req", err)
+		}
+	}()
 
 	respSer, err := io.ReadAll(resp.Body)
 	if err != nil {
