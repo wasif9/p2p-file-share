@@ -34,7 +34,7 @@ jobs:
           go-version: ${{ matrix.go }}
 
       - name: Install golangci-lint
-        uses: golangci/golangci-lint-action@7
+        uses: golangci/golangci-lint-action@v7
         with:
           version: v2.0
 
