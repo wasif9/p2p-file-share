@@ -301,7 +301,11 @@ func setupNode(ctx context.Context, bootstrapAddr string) (host.Host, *dht.IpfsD
 //		log.Printf("Sent file: %s\n", fileName)
 //	}
 func handleFileRequest(s network.Stream) {
-	defer s.Close()
+	defer func() {
+		if err := s.Close(); err != nil {
+			log.Fatal("Peer app error when close file request stream", err)
+		}
+	}()
 
 	// Read requested filename
 	buf := make([]byte, 1024)
