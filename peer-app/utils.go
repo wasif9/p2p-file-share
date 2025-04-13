@@ -3,6 +3,7 @@ package main
 import (
 	"crypto/sha256"
 	"io"
+	"log"
 	"os"
 
 	"github.com/ipfs/go-cid"
@@ -24,7 +25,11 @@ func cidFromFile(filepath string) (cid.Cid, error) {
 	if err != nil {
 		return cid.Cid{}, err
 	}
-	defer f.Close()
+	defer func() {
+		if err := f.Close(); err != nil {
+			log.Fatal("Error when close the file used for CID", err)
+		}
+	}()
 
 	data, err := io.ReadAll(f)
 	if err != nil {
