@@ -37,7 +37,4 @@ jobs:
         uses: golangci/golangci-lint-action@v7
         with:
           version: v2.0
-
-      - name: Run Linter
-        run: |
-          golangci-lint run ./... --timeout=3m
+          args: --timeout=3m
