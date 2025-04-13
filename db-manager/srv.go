@@ -24,7 +24,7 @@ func init() {
 }
 
 func GetUptime() time.Duration {
-	return time.Now().Sub(startTime)
+	return time.Since(startTime)
 }
 
 // Handles http requests to the route '/manifests/{name}'
@@ -224,7 +224,9 @@ func leaderHandler(w http.ResponseWriter, r *http.Request) {
 	log.Printf("my new leader is %d", leaderIndex)
 
 	w.WriteHeader(http.StatusOK)
-	fmt.Fprint(w, "Successfully updated leader!")
+	if _, err := fmt.Fprint(w, "Successfully updated leader!"); err != nil {
+		log.Fatal("Error when POST leader", err)
+	}
 
 }
 
