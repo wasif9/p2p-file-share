@@ -5,13 +5,33 @@
     "version": "0.2.0",
     "configurations": [
         {
-            "name": "debug server (w/ config.json)",
+            "name": "reverse proxy",
+            "type": "go",
+            "request": "launch",
+            "mode": "auto",
+            "program": "${workspaceFolder}/reverse-proxy",
+            "args": [
+                "${workspaceFolder}/superconfig.json"
+            ]
+        },
+        {
+            "name": "db manager",
             "type": "go",
             "request": "launch",
             "mode": "auto",
             "program": "${workspaceFolder}/db-manager",
             "args": [
-                "config.json"
+                "${workspaceFolder}/superconfig.json",
+                "0"
+            ]
+        }
+    ],
+    "compounds": [
+        {
+            "name": "Run both servers",
+            "configurations": [
+                "reverse proxy",
+                "db manager"
             ]
         }
     ]
