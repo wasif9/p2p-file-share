@@ -17,7 +17,7 @@ import (
 var leaderIndex int = -1
 
 func monitorLeader(db *gorm.DB) {
-	for true {
+	for {
 		time.Sleep(time.Second * 10)
 
 		if leaderIndex == -1 {

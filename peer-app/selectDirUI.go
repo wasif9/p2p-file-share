@@ -122,7 +122,7 @@ func (selectDir *SelectUI) SelectLayout(gtx layout.Context, th *material.Theme) 
 		}),
 		// Dir List
 		layout.Flexed(1, func(gtx layout.Context) layout.Dimensions {
-			return selectDir.list.List.Layout(gtx, len(selectDir.directories), func(gtx layout.Context, i int) layout.Dimensions {
+			return selectDir.list.Layout(gtx, len(selectDir.directories), func(gtx layout.Context, i int) layout.Dimensions {
 				if i >= len(selectDir.directories) {
 					return layout.Dimensions{}
 				}

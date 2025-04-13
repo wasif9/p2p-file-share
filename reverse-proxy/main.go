@@ -46,8 +46,8 @@ func init() {
 func nextRoundRobin() string {
 	client := &http.Client{Timeout: time.Second * 1}
 
-	for true {
-		var try string = superConfiguration.DbManagerConfigs[robin].Address
+	for {
+		try := superConfiguration.DbManagerConfigs[robin].Address
 		robin = (robin + 1) % n
 
 		log.Printf("trying %s\n", try)
@@ -57,8 +57,6 @@ func nextRoundRobin() string {
 			return try
 		}
 	}
-
-	return superConfiguration.DbManagerConfigs[robin].Address
 }
 
 func main() {
@@ -94,7 +92,11 @@ func main() {
 			http.Error(w, fmt.Sprintf("Error forwarding request: %s", err), http.StatusBadGateway)
 			return
 		}
-		defer resp.Body.Close()
+		defer func() {
+			if err := resp.Body.Close(); err != nil {
+				log.Fatal("Reverse proxy error when close the forwarding request", err)
+			}
+		}()
 
 		// Copy response headers
 		for name, values := range resp.Header {
@@ -114,7 +116,9 @@ func main() {
 	http.HandleFunc("/leader", func(w http.ResponseWriter, r *http.Request) {
 		switch r.Method {
 		case http.MethodGet:
-			fmt.Fprint(w, leaderAddr)
+			if _, err := fmt.Fprint(w, leaderAddr); err != nil {
+				log.Fatal("Reverse proxy error when GET /leader", err)
+			}
 		case http.MethodPost:
 			newAddress := r.URL.Query().Get("address")
 			if newAddress == "" {

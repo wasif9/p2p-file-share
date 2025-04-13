@@ -188,7 +188,7 @@ func (upload *UploadUI) fileLayout(gtx layout.Context, th *material.Theme, i int
 					fileBtn.Background = color.NRGBA{R: 100, G: 150, B: 255, A: 255}
 				} else if file == upload.selected {
 					// Green for selected files
-					fileBtn.Color = th.Palette.ContrastFg
+					fileBtn.Color = th.ContrastFg
 					fileBtn.Background = color.NRGBA{R: 60, G: 179, B: 113, A: 255}
 				} else {
 					fileBtn.Color = color.NRGBA{R: 0, G: 0, B: 0, A: 255}
