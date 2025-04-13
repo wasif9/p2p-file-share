@@ -36,7 +36,6 @@ type UploadUI struct {
 	list       widget.List
 	files      []os.DirEntry
 	dirPath    string
-	errorMsg   string
 	refreshBtn widget.Clickable
 	backBtn    widget.Clickable
 	fileBtns   []widget.Clickable
