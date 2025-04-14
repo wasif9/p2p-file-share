@@ -36,7 +36,6 @@ type UploadUI struct {
 	list       widget.List
 	files      []os.DirEntry
 	dirPath    string
-	errorMsg   string
 	refreshBtn widget.Clickable
 	backBtn    widget.Clickable
 	fileBtns   []widget.Clickable
@@ -136,7 +135,7 @@ func (upload *UploadUI) UploadLayout(gtx layout.Context, th *material.Theme) lay
 		}),
 		// File List
 		layout.Flexed(1, func(gtx layout.Context) layout.Dimensions {
-			return upload.list.List.Layout(gtx, len(upload.files), func(gtx layout.Context, i int) layout.Dimensions {
+			return upload.list.Layout(gtx, len(upload.files), func(gtx layout.Context, i int) layout.Dimensions {
 				if i >= len(upload.files) {
 					return layout.Dimensions{}
 				}
@@ -189,7 +188,7 @@ func (upload *UploadUI) fileLayout(gtx layout.Context, th *material.Theme, i int
 					fileBtn.Background = color.NRGBA{R: 100, G: 150, B: 255, A: 255}
 				} else if file == upload.selected {
 					// Green for selected files
-					fileBtn.Color = th.Palette.ContrastFg
+					fileBtn.Color = th.ContrastFg
 					fileBtn.Background = color.NRGBA{R: 60, G: 179, B: 113, A: 255}
 				} else {
 					fileBtn.Color = color.NRGBA{R: 0, G: 0, B: 0, A: 255}
@@ -306,7 +305,11 @@ func (upload *UploadUI) uploadFile() {
 		log.Println("Error sending POST request:", err)
 		return
 	}
-	defer resp.Body.Close()
+	defer func() {
+		if err := resp.Body.Close(); err != nil {
+			log.Fatal("Peer app error when close the POST req", err)
+		}
+	}()
 
 	respSer, err := io.ReadAll(resp.Body)
 	if err != nil {

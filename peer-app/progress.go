@@ -77,7 +77,7 @@ func (ui *ProgressUI) ProgressLayout(gtx layout.Context, th *material.Theme) lay
 
 		// Download List
 		layout.Rigid(func(gtx layout.Context) layout.Dimensions {
-			return ui.list.List.Layout(gtx, len(ui.files), func(gtx layout.Context, i int) layout.Dimensions {
+			return ui.list.Layout(gtx, len(ui.files), func(gtx layout.Context, i int) layout.Dimensions {
 				if ui.files[i].Shown {
 					// Padding
 					inset := layout.Inset{

@@ -153,7 +153,7 @@ func (ui *DownloadUI) layoutResults(gtx layout.Context, th *material.Theme, prgU
 	// Results
 	return layout.Inset{Top: 8, Bottom: 8}.Layout(gtx, func(gtx layout.Context) layout.Dimensions {
 		// Display all result in buttons
-		return ui.list.List.Layout(gtx, len(ui.results), func(gtx layout.Context, i int) layout.Dimensions {
+		return ui.list.Layout(gtx, len(ui.results), func(gtx layout.Context, i int) layout.Dimensions {
 			btn := &ui.resultButtons[i]
 			isSelected := ui.selectedResult == ui.results[i]
 
@@ -171,8 +171,8 @@ func (ui *DownloadUI) layoutResults(gtx layout.Context, th *material.Theme, prgU
 						// Different style for selected items
 						if isSelected {
 							// Create a highlighted button
-							button.Background = th.Palette.ContrastBg
-							button.Color = th.Palette.ContrastFg
+							button.Background = th.ContrastBg
+							button.Color = th.ContrastFg
 						} else {
 							// Regular button
 							button.Background = color.NRGBA{R: 255, G: 255, B: 255, A: 255}
@@ -235,7 +235,11 @@ func (ui *DownloadUI) performSearch() {
 		ui.loading = false
 		return
 	}
-	defer resp.Body.Close()
+	defer func() {
+		if err := resp.Body.Close(); err != nil {
+			log.Fatal("Peer app error when close GET search req", err)
+		}
+	}()
 
 	// Check for successful response status
 	if resp.StatusCode != http.StatusOK {
@@ -304,7 +308,11 @@ func (ui *DownloadUI) download(prgUI *ProgressUI) {
 			downloadFile.Shown = false
 			return
 		}
-		defer resp.Body.Close()
+		defer func() {
+			if err := resp.Body.Close(); err != nil {
+				log.Fatal("Peer app error when close the GET download req", err)
+			}
+		}()
 
 		// Decode the JSON response
 		var manifest types.Manifest
@@ -363,7 +371,11 @@ func requestFile(node host.Host, providerID peer.ID, fileName string, dirPath st
 	if err != nil {
 		return err
 	}
-	defer s.Close()
+	defer func() {
+		if err := s.Close(); err != nil {
+			log.Fatal("Peer app error when close request file request", err)
+		}
+	}()
 
 	// Send the file request
 	log.Printf("Requesting file: %s\n", fileName)
@@ -381,7 +393,7 @@ func requestFile(node host.Host, providerID peer.ID, fileName string, dirPath st
 	response := string(data)
 	if strings.HasPrefix(response, "Error:") || strings.HasPrefix(response, "File not found") {
 		log.Printf("Failed to get file %s from the provider %s\n", fileName, providerID.String())
-		return fmt.Errorf("File Not Found from the provider")
+		return fmt.Errorf("file Not Found from the provider")
 	}
 
 	// Construct the correct save path in the peer's directory
@@ -407,7 +419,7 @@ func requestFile(node host.Host, providerID peer.ID, fileName string, dirPath st
 		log.Println("❌ Integrity check failed: File does NOT match expected CID.")
 		log.Printf("Expected CID: %s\n", expectedCID)
 		log.Printf("Computed CID: %s\n", computedCID.String())
-		return fmt.Errorf("Integrity check failed")
+		return fmt.Errorf("integrity check failed")
 	}
 
 	return nil

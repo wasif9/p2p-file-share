@@ -25,7 +25,7 @@ func init() {
 
 	bytes, err := os.ReadFile(configFilePath)
 	if err != nil {
-		log.Fatal(errors.Join(errors.New("Failed to read server configuration file"), err))
+		log.Fatal(errors.Join(errors.New("failed to read server configuration file"), err))
 	}
 
 	mySuperConfig := types.SuperConfig{}
