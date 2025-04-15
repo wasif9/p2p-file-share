@@ -24,10 +24,6 @@ import (
 	"gioui.org/widget"
 	"gioui.org/widget/material"
 
-	// Kademlia DHT
-	dht "github.com/libp2p/go-libp2p-kad-dht"
-	"github.com/libp2p/go-libp2p/core/host"
-
 	types "github.com/wasif9/p2p-file-share/pkg/models"
 )
 
@@ -43,10 +39,6 @@ type UploadUI struct {
 	confirmBtn widget.Clickable
 
 	mu sync.RWMutex
-
-	// Add references to your node + DHT so we can Provide the file
-	node   host.Host
-	kadDHT *dht.IpfsDHT
 }
 
 // LoadFiles loads the list of files and directories in the current dirPath
@@ -279,8 +271,8 @@ func (upload *UploadUI) uploadFile() {
 		return
 	}
 	log.Println("Registering File CID and Manifest CID to DHT")
-	upload.kadDHT.Provide(ctx, fullFileCID, true)
-	upload.kadDHT.Provide(ctx, manifestCID, true)
+	KadDHT.Provide(ctx, fullFileCID, true)
+	KadDHT.Provide(ctx, manifestCID, true)
 
 	// 5. Upload manifest CID to reverse proxy
 	manifestToSend := types.Manifest{

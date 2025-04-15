@@ -23,16 +23,11 @@ import (
 	"gioui.org/widget/material"
 	"github.com/dustin/go-humanize"
 	"github.com/ipfs/go-cid"
-	dht "github.com/libp2p/go-libp2p-kad-dht"
-	"github.com/libp2p/go-libp2p/core/host"
 	"github.com/libp2p/go-libp2p/core/peer"
 	types "github.com/wasif9/p2p-file-share/pkg/models"
 )
 
 type DownloadUI struct {
-	node   host.Host
-	kadDHT *dht.IpfsDHT // <-- Add this to do real DHT lookups
-
 	searchInput    widget.Editor
 	searchButton   widget.Clickable
 	results        []types.Manifest
@@ -330,7 +325,9 @@ func (ui *DownloadUI) download(prgUI *ProgressUI) {
 		// ------------------------------------------------------------
 		// !P2P Download
 
-		peerID, err := dhtLookup(ui, manifest.Hash)
+		DownloadManifest(manifest.Name, manifest.Hash, ui.dirPath+".p2p")
+
+		peerID, err := dhtLookup(manifest.Hash)
 		if err != nil {
 			PopupMessage("Cannot download file \ndue to no providers")
 			log.Println("Error finding provider:", err)
@@ -342,7 +339,7 @@ func (ui *DownloadUI) download(prgUI *ProgressUI) {
 		downloadFile.Progress = 0
 
 		// TODO Keep checking next provider or trying until some providers is online
-		if err := requestFile(ui.node, peerID, manifest.Name, ui.dirPath, manifest.Hash); err != nil {
+		if err := requestFile(peerID, manifest.Name, ui.dirPath, manifest.Hash); err != nil {
 			if strings.HasPrefix(err.Error(), "File Not Found") {
 				PopupMessage("File Not Found: " + fileName)
 			} else if strings.HasPrefix(err.Error(), "Integrity check failed") {
@@ -360,20 +357,21 @@ func (ui *DownloadUI) download(prgUI *ProgressUI) {
 	}()
 }
 
-func requestFile(node host.Host, providerID peer.ID, fileName string, dirPath string, expectedCID string) error {
+func requestFile(providerID peer.ID, fileName string, dirPath string, expectedCID string) error {
 	// Open a new stream to the provider
 	ctx := context.Background()
 
 	// Log which peer we're contacting
 	log.Println("Attempting to request file from provider:", providerID.String())
 
-	s, err := node.NewStream(ctx, providerID, Protocol)
+	s, err := Node.NewStream(ctx, providerID, Protocol)
 	if err != nil {
 		return err
 	}
 	defer func() {
 		if err := s.Close(); err != nil {
-			log.Fatal("Peer app error when close request file request", err)
+			// Closed by the other side (provider)
+			log.Println("Peer app error when close request file request ", err)
 		}
 	}()
 
@@ -425,7 +423,7 @@ func requestFile(node host.Host, providerID peer.ID, fileName string, dirPath st
 	return nil
 }
 
-func dhtLookup(ui *DownloadUI, fileCID string) (peer.ID, error) {
+func dhtLookup(fileCID string) (peer.ID, error) {
 	ctx := context.Background()
 
 	// Decode the CID from the string
@@ -434,13 +432,13 @@ func dhtLookup(ui *DownloadUI, fileCID string) (peer.ID, error) {
 		return "", fmt.Errorf("failed to convert CID: %v", err)
 	}
 
-	providerChan := ui.kadDHT.FindProvidersAsync(ctx, c, 10)
+	providerChan := KadDHT.FindProvidersAsync(ctx, c, 10)
 
 	// Log all found providers
 	var foundProvider peer.ID
 	for p := range providerChan {
 		log.Println("Discovered provider:", p.ID.String())
-		if p.ID != ui.node.ID() {
+		if p.ID != Node.ID() {
 			foundProvider = p.ID
 			break
 		}

@@ -34,7 +34,8 @@ const (
 	ProgressTab
 )
 const (
-	Protocol = "/file-sharing/1.0.0"
+	Protocol  = "/file-sharing/1.0.0"
+	TmpFolder = ".p2p"
 )
 
 var (
@@ -43,6 +44,8 @@ var (
 	DataDir          string
 	ReverseProxyAddr string
 	PWD              string
+	Node             host.Host
+	KadDHT           *dht.IpfsDHT
 )
 
 func init() {
@@ -85,34 +88,12 @@ func main() {
 		log.Fatal("BOOTSTRAP_ADDR environment variable not set. Are you running peer-app in the same directory as the .env file?")
 	}
 
-	ctx := context.Background()
-
-	// 1) Create a new libp2p node + Kademlia DHT
-	node, kad := setupNode(ctx, bootstrapAddr)
-	// go func() {
-	// 	for {
-	// 		peers := node.Peerstore().Peers()
-	// 		log.Println("Known peers:", peers)
-	// 		time.Sleep(5 * time.Second) // Print every 5 seconds
-	// 		log.Println("dht size for node:", node.ID(), kad.RoutingTable().Size())
-	// 	}
-	// }()
-
-	log.Println("Node ID:", node.ID())
-	for _, addr := range node.Addrs() {
-		log.Println(" -", addr, "/p2p/", node.ID())
-	}
-
-	// 2) Handle inbound file requests on our protocol
-	node.SetStreamHandler(Protocol, handleFileRequest)
-
-	// 3) GUI
-	go runGUI(node, kad)
+	runGUI(bootstrapAddr)
 	app.Main()
 }
 
 // GUI function
-func runGUI(node host.Host, kad *dht.IpfsDHT) {
+func runGUI(bootstrapAddr string) {
 	w := new(app.Window)
 	w.Option(app.Title("Peerify"))
 	w.Option(app.Size(unit.Dp(800), unit.Dp(600)))
@@ -144,16 +125,12 @@ func runGUI(node host.Host, kad *dht.IpfsDHT) {
 	selectDir_Up.LoadDirs()
 
 	dnUI := &DownloadUI{
-		node:   node,
-		kadDHT: kad,
 		list: widget.List{
 			List: layout.List{Axis: layout.Vertical},
 		},
 		loading: false,
 	}
 	upUI := &UploadUI{
-		node:   node,
-		kadDHT: kad,
 		list: widget.List{
 			List: layout.List{Axis: layout.Vertical},
 		},
@@ -186,6 +163,18 @@ func runGUI(node host.Host, kad *dht.IpfsDHT) {
 					upUI.dirPath = selectDir_Up.dirPath
 					upUI.LoadFiles()
 					DataDir = selectDir_Up.dirPath
+
+					// Create a new libp2p node + Kademlia DHT
+					ctx := context.Background()
+					setupNode(ctx, bootstrapAddr)
+
+					// Print Node ID & its address
+					log.Println("Node ID:", Node.ID())
+					log.Println(" -", Node.Addrs()[0], "/p2p/", Node.ID())
+
+					// Handle inbound file requests on our protocol
+					Node.SetStreamHandler(Protocol, handleFileRequest)
+
 					set = true
 				}
 				MainLayout(gtx, th, dnUI, upUI, prUI, tabButtons)
@@ -197,7 +186,7 @@ func runGUI(node host.Host, kad *dht.IpfsDHT) {
 }
 
 // setupNode creates a libp2p host + Kademlia DHT, optionally connects to a bootstrap node.
-func setupNode(ctx context.Context, bootstrapAddr string) (host.Host, *dht.IpfsDHT) {
+func setupNode(ctx context.Context, bootstrapAddr string) {
 	priv := loadOrGeneratePrivateKey()
 	node, err := libp2p.New(libp2p.Identity(priv))
 	if err != nil {
@@ -260,35 +249,11 @@ func setupNode(ctx context.Context, bootstrapAddr string) (host.Host, *dht.IpfsD
 		}
 	}()
 
-	return node, kad
+	Node, KadDHT = node, kad
 }
 
-// A simple stream handler for inbound file requests
-// func handleFileRequest(s network.Stream) {
-// 	defer s.Close()
-
-// 	buf := bufio.NewReader(s)
-// 	fileName, err := buf.ReadString('\n')
-// 	if err != nil {
-// 		log.Println("Error reading request:", err)
-// 		return
-// 	}
-// 	fileName = strings.TrimSpace(fileName)
-// 	log.Printf("Received request for file: %s\n", fileName)
-
-//		data, err := ioutil.ReadFile(fileName)
-//		if err != nil {
-//			msg := fmt.Sprintf("Error: %v\n", err)
-//			s.Write([]byte(msg))
-//			return
-//		}
-//		s.Write(data)
-//		log.Printf("Sent file: %s\n", fileName)
-//	}
-
 func loadOrGeneratePrivateKey() crypto.PrivKey {
-	//var keyFilePath = filepath.Join(dataDir, "peer.key")
-	var keyFilePath = "./p2p/peer.key"
+	var keyFilePath = filepath.Join(DataDir, TmpFolder, "peer.key")
 	if keyData, err := os.ReadFile(keyFilePath); err == nil {
 		key, err := crypto.UnmarshalPrivateKey(keyData)
 		if err != nil {
@@ -330,7 +295,6 @@ func handleFileRequest(s network.Stream) {
 	log.Println("Received request for file:", requestedFile)
 
 	// Construct file path based on peer's directory
-	// ! Race condition? DataDir is set after user selection
 	filePath := filepath.Join(DataDir, requestedFile)
 	log.Println("File path:", filePath)
 
