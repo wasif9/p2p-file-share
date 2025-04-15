@@ -20,6 +20,12 @@ type ManifestData struct {
 	Chunks   map[int]string `json:"chunks"` // index => chunk CID
 }
 
+type DownloadRequest struct {
+	FileName   string `json:"filename"`
+	ChunkIndex int    `json:"chunk_index"`
+	Type       string `json:"type"`
+}
+
 type Heartbeat struct {
 	Index       int           `json:"node-index"`
 	Uptime      time.Duration `json:"uptime"`
