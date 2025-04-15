@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"io"
 	"log"
@@ -11,11 +12,11 @@ import (
 
 	"github.com/ipfs/go-cid"
 	"github.com/libp2p/go-libp2p/core/peer"
+	types "github.com/wasif9/p2p-file-share/pkg/models"
 )
 
 func DownloadManifest(fileName, fileCID, filePath string) {
 	var providers []peer.ID
-
 	var err error
 	if providers, err = dhtLookup1(fileCID); err != nil {
 		PopupMessage("Fail to download file due to " + err.Error())
@@ -24,6 +25,7 @@ func DownloadManifest(fileName, fileCID, filePath string) {
 
 		for _, provider := range providers {
 			if err := requestFile1(provider, fileName+".json", filePath, fileCID); err != nil {
+				log.Println(err)
 				continue
 			}
 			return
@@ -40,7 +42,9 @@ func dhtLookup1(fileCID string) ([]peer.ID, error) {
 		return nil, fmt.Errorf("failed to convert CID: %v", err)
 	}
 
+	log.Print("FIND PROVIDER")
 	providerChan := KadDHT.FindProvidersAsync(ctx, c, 10)
+	log.Print("FIND PROVIDER DONE")
 
 	// Keep looking for providers until find at least 1
 	var foundProvider []peer.ID
@@ -75,8 +79,19 @@ func requestFile1(providerID peer.ID, fileName, dirPath, expectedCID string) err
 	}()
 
 	// Send the file request
-	log.Printf("Requesting file: %s\n", fileName)
-	if _, err := s.Write([]byte(fileName + "\n")); err != nil {
+	request := types.DownloadRequest{
+		FileName:   fileName,
+		ChunkIndex: 0,
+		Type:       "manifest",
+	}
+	jsonData, err := json.Marshal(request)
+	if err != nil {
+		log.Println("Error encoding JSON:", err)
+		PopupMessage("Cannot download file due to JSON error")
+		return err
+	}
+	log.Printf("Requesting file: %v\n", request)
+	if _, err := s.Write(jsonData); err != nil {
 		return err
 	}
 

@@ -7,7 +7,6 @@ import (
 	"log"
 	"os"
 	"path/filepath"
-	"strings"
 	"time"
 
 	"gioui.org/app"
@@ -164,6 +163,10 @@ func runGUI(bootstrapAddr string) {
 					upUI.LoadFiles()
 					DataDir = selectDir_Up.dirPath
 
+					if err := os.MkdirAll(filepath.Join(dnUI.dirPath, ".p2p"), 0755); err != nil {
+						log.Fatalf("Failed to create .p2p folder in %v dir: %v", dnUI.dirPath, err)
+					}
+
 					// Create a new libp2p node + Kademlia DHT
 					ctx := context.Background()
 					setupNode(ctx, bootstrapAddr)
@@ -291,16 +294,29 @@ func handleFileRequest(s network.Stream) {
 		log.Println("Error reading request:", err)
 		return
 	}
-	requestedFile := strings.TrimSpace(string(buf[:n]))
+
+	var requestedFile types.DownloadRequest
+	if err := json.Unmarshal(buf[:n], &requestedFile); err != nil {
+		log.Println("Error reading request:", err)
+		return
+	}
+
 	log.Println("Received request for file:", requestedFile)
 
 	// Construct file path based on peer's directory
-	filePath := filepath.Join(DataDir, requestedFile)
+	var filePath string
+	if requestedFile.Type == "manifest" {
+		filePath = filepath.Join(DataDir, ".p2p", requestedFile.FileName)
+	} else {
+		filePath = filepath.Join(DataDir, requestedFile.FileName)
+	}
+
 	log.Println("File path:", filePath)
 
 	// Check if file exists
 	if _, err := os.Stat(filePath); os.IsNotExist(err) {
-		log.Println("File not found on provider node:", filePath)
+		log.Printf("File not found on provider node %v", filePath)
+
 		if _, err := s.Write([]byte("Error: open " + filePath + ": no such file or directory\n")); err != nil {
 			log.Println("Error writing to stream:", err)
 		}
