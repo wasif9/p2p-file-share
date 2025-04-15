@@ -24,10 +24,6 @@ import (
 	"gioui.org/widget"
 	"gioui.org/widget/material"
 
-	// Kademlia DHT
-	dht "github.com/libp2p/go-libp2p-kad-dht"
-	"github.com/libp2p/go-libp2p/core/host"
-
 	types "github.com/wasif9/p2p-file-share/pkg/models"
 )
 
@@ -43,10 +39,6 @@ type UploadUI struct {
 	confirmBtn widget.Clickable
 
 	mu sync.RWMutex
-
-	// Add references to your node + DHT so we can Provide the file
-	node   host.Host
-	kadDHT *dht.IpfsDHT
 }
 
 // LoadFiles loads the list of files and directories in the current dirPath
@@ -257,7 +249,7 @@ func (upload *UploadUI) uploadFile() {
 
 	// 3) Provide the file CID to the Kademlia DHT
 	ctx := context.Background()
-	if err := upload.kadDHT.Provide(ctx, cid, true); err != nil {
+	if err := KadDHT.Provide(ctx, cid, true); err != nil {
 		log.Println("Error providing CID to DHT:", err)
 		PopupMessage("Cannot upload file \ndue to DHT error")
 		return
