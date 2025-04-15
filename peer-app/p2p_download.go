@@ -18,13 +18,13 @@ import (
 func DownloadManifest(fileName, fileCID, filePath string) {
 	var providers []peer.ID
 	var err error
-	if providers, err = dhtLookup1(fileCID); err != nil {
+	if providers, err = dhtLookup(fileCID); err != nil {
 		PopupMessage("Fail to download file due to " + err.Error())
 	}
 	for {
 
 		for _, provider := range providers {
-			if err := requestFile1(provider, fileName+".json", filePath, fileCID); err != nil {
+			if err := requestFile(provider, fileName+".json", filePath, fileCID, "manifest", 0); err != nil {
 				log.Println(err)
 				continue
 			}
@@ -33,7 +33,47 @@ func DownloadManifest(fileName, fileCID, filePath string) {
 	}
 }
 
-func dhtLookup1(fileCID string) ([]peer.ID, error) {
+func DownloadFile(fileName, filePath string) {
+	// Open the file
+	file, err := os.Open(filepath.Join(filePath, ".p2p", fileName+".json"))
+	if err != nil {
+		log.Fatalf("failed to open file: %v", err)
+	}
+	defer file.Close()
+
+	// Read all content
+	data, err := io.ReadAll(file)
+	if err != nil {
+		log.Fatalf("failed to read file: %v", err)
+	}
+
+	// Unmarshal into struct
+	var manifest types.ManifestData
+	if err := json.Unmarshal(data, &manifest); err != nil {
+		log.Fatalf("failed to unmarshal JSON: %v", err)
+	}
+
+	// Download file from providers
+	// TODO P2P chunking download
+	var providers []peer.ID
+	if providers, err = dhtLookup(manifest.Chunks[0]); err != nil {
+		PopupMessage("Fail to download file due to " + err.Error())
+		return
+	}
+	for {
+
+		for _, provider := range providers {
+			// 0 here is the chunk ID....
+			if err := requestFile(provider, fileName, filePath, manifest.FileCID, "file", 0); err != nil {
+				log.Println(err)
+				continue
+			}
+			return
+		}
+	}
+}
+
+func dhtLookup(fileCID string) ([]peer.ID, error) {
 	ctx := context.Background()
 
 	// Decode the CID from the string
@@ -52,6 +92,7 @@ func dhtLookup1(fileCID string) ([]peer.ID, error) {
 		for p := range providerChan {
 			log.Println("Discovered provider:", p.ID.String())
 			if p.ID != Node.ID() {
+				log.Printf("FIND PEER %v\n", p.ID.ShortString())
 				foundProvider = append(foundProvider, p.ID)
 			}
 		}
@@ -60,7 +101,7 @@ func dhtLookup1(fileCID string) ([]peer.ID, error) {
 	return foundProvider, nil
 }
 
-func requestFile1(providerID peer.ID, fileName, dirPath, expectedCID string) error {
+func requestFile(providerID peer.ID, fileName, dirPath, expectedCID, downloadType string, chunkID int) error {
 	// Open a new stream to the provider
 	ctx := context.Background()
 
@@ -81,8 +122,8 @@ func requestFile1(providerID peer.ID, fileName, dirPath, expectedCID string) err
 	// Send the file request
 	request := types.DownloadRequest{
 		FileName:   fileName,
-		ChunkIndex: 0,
-		Type:       "manifest",
+		ChunkIndex: chunkID,
+		Type:       downloadType,
 	}
 	jsonData, err := json.Marshal(request)
 	if err != nil {
