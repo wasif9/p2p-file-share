@@ -14,12 +14,17 @@ type Manifest struct {
 	Hash string `json:"hash"`
 	Size int64  `json:"size"`
 }
+type ManifestData struct {
+	FileName string         `json:"fileName"`
+	FileCID  string         `json:"fileCID"`
+	Chunks   map[int]string `json:"chunks"` // index => chunk CID
+}
 
 type Heartbeat struct {
 	Index       int           `json:"node-index"`
 	Uptime      time.Duration `json:"uptime"`
 	LeaderIndex int           `json:"leader-index"`
-	Timestamp   int          `json:"timestamp"`
+	Timestamp   int           `json:"timestamp"`
 }
 
 type DbMgrConfig struct {
