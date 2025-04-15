@@ -53,6 +53,14 @@ func monitorLeader(db *gorm.DB) {
 			log.Printf("leader heartbeat is newer than mine (%v > %v)\n", heartbeat.Timestamp, timestamp)
 			catchup(timestamp)
 		}
+
+		if heartbeat.Timestamp < timestamp {
+			log.Printf("my timestamp is newer than leader's (%v < %v), initiating reverse catchup",
+				heartbeat.Timestamp, timestamp)
+			if err := reverseLeaderCatchup(db, allConfigs[leaderIndex].Address); err != nil {
+				log.Printf("reverse catchup failed: %s", err)
+			}
+		}
 	}
 }
 
@@ -108,7 +116,70 @@ func catchup(myTimestamp int) {
 		}
 		log.Printf("self acked\n")
 	}
+}
 
+func reverseLeaderCatchup(db *gorm.DB, leaderAddress string) error {
+	timestamp := getTimestamp(db)
+
+	// Get leader's timestamp first
+	client := &http.Client{Timeout: time.Second * 2}
+	resp, err := client.Get(fmt.Sprintf("http://%s/api/v1/heartbeat", leaderAddress))
+	if err != nil {
+		return fmt.Errorf("failed to contact leader: %s", err)
+	}
+	defer resp.Body.Close()
+
+	respBytes, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return fmt.Errorf("error reading response: %s", err)
+	}
+
+	var leaderHeartbeat types.Heartbeat
+	err = json.Unmarshal(respBytes, &leaderHeartbeat)
+	if err != nil {
+		return fmt.Errorf("error parsing heartbeat: %s", err)
+	}
+
+	// If my timestamp is higher than leader's, initiate reverse catchup
+	if timestamp > leaderHeartbeat.Timestamp {
+		log.Printf("My timestamp (%d) is higher than leader's (%d), initiating reverse catchup",
+			timestamp, leaderHeartbeat.Timestamp)
+
+		// Query manifests that the leader is missing
+		var manifests []types.Manifest
+		err = db.Where("timestamp > ?", leaderHeartbeat.Timestamp).Find(&manifests).Error
+		if err != nil {
+			return fmt.Errorf("error querying newer manifests: %s", err)
+		}
+
+		log.Printf("Sending %d manifests to leader for reverse catchup", len(manifests))
+
+		// Send these manifests to the leader via the reverse catchup endpoint
+		manifestsBytes, err := json.Marshal(manifests)
+		if err != nil {
+			return fmt.Errorf("error serializing manifests: %s", err)
+		}
+
+		resp, err := client.Post(
+			fmt.Sprintf("http://%s/api/v1/reverse-catchup", leaderAddress),
+			"application/json",
+			bytes.NewBuffer(manifestsBytes),
+		)
+		if err != nil {
+			return fmt.Errorf("error sending manifests to leader: %s", err)
+		}
+		defer resp.Body.Close()
+
+		if resp.StatusCode != http.StatusOK {
+			respBytes, _ := io.ReadAll(resp.Body)
+			return fmt.Errorf("leader rejected reverse catchup: %s: %s",
+				resp.Status, string(respBytes))
+		}
+
+		log.Printf("Reverse catchup to leader successful")
+	}
+
+	return nil
 }
 
 func election() {
@@ -149,7 +220,7 @@ func election() {
 	highestTimestamp := int(0)
 	highestIndex := cfg.Index
 	for nodeIndex, timestamp := range timestamps {
-		if timestamp > highestTimestamp { // the node with higher timestamp wins 
+		if timestamp > highestTimestamp { // the node with higher timestamp wins
 			highestTimestamp = timestamp
 			highestIndex = nodeIndex
 		} else if timestamp == highestTimestamp {
