@@ -325,7 +325,7 @@ func (ui *DownloadUI) download(prgUI *ProgressUI) {
 		// ------------------------------------------------------------
 		// !P2P Download
 
-		DownloadManifest(manifest.Name, manifest.Hash, ui.dirPath+".p2p")
+		DownloadManifest(manifest.Name, manifest.Hash, filepath.Join(ui.dirPath, ".p2p"))
 
 		peerID, err := dhtLookup(manifest.Hash)
 		if err != nil {

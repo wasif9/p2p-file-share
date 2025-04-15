@@ -16,11 +16,11 @@ import (
 func DownloadManifest(fileName, fileCID, filePath string) {
 	var providers []peer.ID
 
+	var err error
+	if providers, err = dhtLookup1(fileCID); err != nil {
+		PopupMessage("Fail to download file due to " + err.Error())
+	}
 	for {
-		var err error
-		if providers, err = dhtLookup1(fileCID); err != nil {
-			PopupMessage("Fail to download file due to " + err.Error())
-		}
 
 		for _, provider := range providers {
 			if err := requestFile1(provider, fileName+".json", filePath, fileCID); err != nil {
@@ -44,7 +44,7 @@ func dhtLookup1(fileCID string) ([]peer.ID, error) {
 
 	// Keep looking for providers until find at least 1
 	var foundProvider []peer.ID
-	for len(providerChan) != 0 {
+	for len(foundProvider) == 0 {
 		for p := range providerChan {
 			log.Println("Discovered provider:", p.ID.String())
 			if p.ID != Node.ID() {
@@ -89,7 +89,7 @@ func requestFile1(providerID peer.ID, fileName, dirPath, expectedCID string) err
 	// Check if the response indicates an error
 	response := string(data)
 	if strings.HasPrefix(response, "Error:") || strings.HasPrefix(response, "File not found") {
-		log.Printf("Failed to get file %s from the provider %s\n", fileName, providerID.String())
+		log.Printf("Failed to get file %s from the provider %s, %s\n", fileName, providerID.String(), response)
 		return fmt.Errorf("file Not Found from the provider")
 	}
 

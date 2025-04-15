@@ -319,7 +319,7 @@ func (upload *UploadUI) uploadFile() {
 	log.Println("Resp Body:", string(respSer))
 
 	// 6. Cleanup chunk directory
-	os.RemoveAll(filepath.Join(".p2p", fileName+"_chunks"))
+	os.RemoveAll(filepath.Join(DataDir, ".p2p", fileName+"_chunks"))
 
 	if resp.StatusCode == http.StatusCreated {
 		PopupMessage("Uploaded & Provided: " + fileName)
@@ -330,7 +330,7 @@ func (upload *UploadUI) uploadFile() {
 
 // Helper to write the manifest.json file and return the full path
 func writeManifestToDisk(manifest types.ManifestData) (string, error) {
-	manifestDir := ".p2p"
+	manifestDir := filepath.Join(DataDir, ".p2p")
 	os.MkdirAll(manifestDir, os.ModePerm)
 	manifestPath := filepath.Join(manifestDir, manifest.FileName+".json")
 	f, err := os.Create(manifestPath)
