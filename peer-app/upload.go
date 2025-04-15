@@ -215,10 +215,13 @@ func (upload *UploadUI) navigateUp() {
 	}
 }
 
-// UploadFile performs the final upload step correctly:
-// 1) Generates CID from file data.
-// 2) Provides the CID to the Kademlia DHT, ensuring peer discoverability.
-// 3) If successful, posts the manifest (with CID) to the load balancer/DB.
+// UploadFile performs the full upload process:
+// 1. Splits the file into chunks and stores them.
+// 2. Generates CIDs for each chunk and the full file.
+// 3. Creates a manifest.json file mapping chunk index to CID.
+// 4. Registers the full file CID and manifest CID to the DHT.
+// 5. Sends the manifest CID to the reverse proxy server.
+// 6. Deletes chunk files locally to conserve space.
 func (upload *UploadUI) uploadFile() {
 	if upload.selected == nil {
 		PopupMessage("No file is selected!")
@@ -229,94 +232,116 @@ func (upload *UploadUI) uploadFile() {
 	filePath := filepath.Join(upload.dirPath, fileName)
 	log.Println("File Path =", filePath)
 
-	// 1) Get file size
+	// 1. Get file size
 	fileSize, err := getFileSize(filePath)
 	if err != nil {
 		log.Println("Error getting file size:", err)
-		PopupMessage("Cannot upload file \ndue to file corruption")
+		PopupMessage("Cannot upload file due to file corruption")
 		return
 	}
 	log.Println("File Size =", strconv.FormatInt(fileSize, 10), "bytes")
 
-	// 2) Generate CID from file data
-	cid, err := cidFromFile(filePath)
+	// 2. Chunk the file, generate CIDs for each chunk and the full file
+	chunkMap, fullFileCID, err := chunkAndStoreChunks(filePath)
 	if err != nil {
-		log.Println("Error generating CID from file:", err)
-		PopupMessage("Cannot upload file \ndue to file corruption")
+		log.Println("Error during chunking:", err)
+		PopupMessage("Failed to chunk file")
 		return
 	}
-	log.Println("CID =", cid.String())
 
-	// 3) Provide the file CID to the Kademlia DHT
+	// 3. Create and save manifest.json to disk using internal struct
+	manifest := types.ManifestData{
+		FileName: fileName,
+		FileCID:  fullFileCID.String(),
+		Chunks:   chunkMap,
+	}
+	manifestPath, err := writeManifestToDisk(manifest)
+	if err != nil {
+		log.Println("Error writing manifest file:", err)
+		PopupMessage("Cannot upload file due to manifest error")
+		return
+	}
+
+	// 4. Get CID for manifest file and register CIDs to DHT
 	ctx := context.Background()
-	if err := KadDHT.Provide(ctx, cid, true); err != nil {
-		log.Println("Error providing CID to DHT:", err)
-		PopupMessage("Cannot upload file \ndue to DHT error")
+	manifestCID, err := cidFromFile(manifestPath)
+	if err != nil {
+		log.Println("Error generating CID for manifest file:", err)
+		PopupMessage("Cannot upload file due to manifest CID failure")
 		return
 	}
-	log.Println("Successfully provided CID to DHT:", cid.String())
+	log.Println("Registering File CID and Manifest CID to DHT")
+	KadDHT.Provide(ctx, fullFileCID, true)
+	KadDHT.Provide(ctx, manifestCID, true)
 
-	// 4) Build the manifest with CID
-	manifest := types.Manifest{
+	// 5. Upload manifest CID to reverse proxy
+	manifestToSend := types.Manifest{
 		Name: fileName,
-		Hash: cid.String(), // CID instead of raw file hash
+		Hash: manifestCID.String(),
 		Size: fileSize,
 	}
-
-	// 5) Marshal manifest to JSON
-	jsonData, err := json.Marshal(manifest)
+	jsonData, err := json.Marshal(manifestToSend)
 	if err != nil {
 		log.Println("Error encoding JSON:", err)
-		PopupMessage("Cannot upload file \ndue to JSON type error")
+		PopupMessage("Cannot upload file due to JSON error")
 		return
 	}
-
-	// 6) POST manifest JSON to load balancer
 	postReq := "/api/" + DBManagerVer + "/manifests"
-	log.Println("Sending POST", postReq, "to", ReverseProxyAddr)
-
-	// Set timeout for whole POST request
-	ctx, cancel := context.WithTimeout(context.Background(), time.Second*2)
+	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
 	defer cancel()
 
 	req, err := http.NewRequestWithContext(ctx, "POST", "http://"+ReverseProxyAddr+postReq, bytes.NewBuffer(jsonData))
 	if err != nil {
 		log.Println("Error creating POST request:", err)
-		PopupMessage("Cannot upload file \ndue to POST request failure")
+		PopupMessage("Cannot upload file due to POST request failure")
 		return
 	}
 	req.Header.Set("Content-Type", "application/json")
-
 	resp, err := http.DefaultClient.Do(req)
 	if err != nil {
 		if ctx.Err() == context.DeadlineExceeded {
-			PopupMessage("Cannot upload file \ndue to busy servers")
+			PopupMessage("Cannot upload file due to busy servers")
 		} else {
-			PopupMessage("Cannot upload file \ndue to proxy error")
+			PopupMessage("Cannot upload file due to proxy error")
 		}
 		log.Println("Error sending POST request:", err)
 		return
 	}
-	defer func() {
-		if err := resp.Body.Close(); err != nil {
-			log.Fatal("Peer app error when close the POST req", err)
-		}
-	}()
+	defer resp.Body.Close()
 
 	respSer, err := io.ReadAll(resp.Body)
 	if err != nil {
 		log.Println("Error reading response:", err)
-		PopupMessage("Cannot upload file \ndue to incorrect response from servers")
+		PopupMessage("Cannot upload file due to incorrect server response")
 		return
 	}
 	log.Println("Resp Status:", resp.Status)
 	log.Println("Resp Body:", string(respSer))
 
+	// 6. Cleanup chunk directory
+	os.RemoveAll(filepath.Join(".p2p", fileName+"_chunks"))
+
 	if resp.StatusCode == http.StatusCreated {
 		PopupMessage("Uploaded & Provided: " + fileName)
 	} else {
-		PopupMessage("Cannot upload file \ndue to server error: \n" + string(respSer))
+		PopupMessage("Cannot upload file due to server error: \n" + string(respSer))
 	}
+}
+
+// Helper to write the manifest.json file and return the full path
+func writeManifestToDisk(manifest types.ManifestData) (string, error) {
+	manifestDir := ".p2p"
+	os.MkdirAll(manifestDir, os.ModePerm)
+	manifestPath := filepath.Join(manifestDir, manifest.FileName+".json")
+	f, err := os.Create(manifestPath)
+	if err != nil {
+		return "", err
+	}
+	defer f.Close()
+	if err := json.NewEncoder(f).Encode(manifest); err != nil {
+		return "", err
+	}
+	return manifestPath, nil
 }
 
 // Helper: get file size
