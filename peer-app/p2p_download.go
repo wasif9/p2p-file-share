@@ -67,30 +67,29 @@ func DownloadFile(fileName, filePath string) {
 
 	for index, chunkCID := range manifest.Chunks {
 		wg.Add(1)
-		go func(idx int, cidStr string) {
+
+		// Round-robin select a peer for this chunk
+		provider := providers[index%len(providers)]
+
+		go func(idx int, cidStr string, provider peer.ID) {
 			defer wg.Done()
 
-			for _, provider := range providers {
-				buffer, err := requestChunk(provider, fileName, idx)
-				if err != nil {
-					log.Printf("Chunk %d failed from provider %s: %v", idx, provider, err)
-					continue
-				}
-
-				computedCID, err := cidFromBytes(buffer)
-				log.Printf("Chunk %d CID: %s", idx, computedCID.String())
-				log.Printf("Expected CID: %s", cidStr)
-				if err != nil || computedCID.String() != cidStr {
-					errChan <- fmt.Errorf("chunk %d integrity check failed", idx)
-					return
-				}
-
-				chunkData[idx] = buffer
+			buffer, err := requestChunk(provider, fileName, idx)
+			if err != nil {
+				log.Printf("Chunk %d failed from provider %s: %v", idx, provider, err)
+				errChan <- fmt.Errorf("chunk %d failed from provider %s", idx, provider)
 				return
 			}
 
-			errChan <- fmt.Errorf("chunk %d failed: no valid provider", idx)
-		}(index, chunkCID)
+			computedCID, err := cidFromBytes(buffer)
+			if err != nil || computedCID.String() != cidStr {
+				log.Printf("Chunk %d CID mismatch from provider %s", idx, provider)
+				errChan <- fmt.Errorf("chunk %d integrity check failed", idx)
+				return
+			}
+
+			chunkData[idx] = buffer
+		}(index, chunkCID, provider)
 	}
 
 	wg.Wait()
@@ -124,6 +123,27 @@ func DownloadFile(fileName, filePath string) {
 	}
 	if computedCID.String() == manifest.FileCID {
 		log.Println("✅ File reconstruction integrity verified")
+
+		// Automatically announce that this peer now serves the file and manifest
+		ctx := context.Background()
+		log.Println("📢 Announcing file availability to DHT...")
+
+		// Announce file CID
+		if err := KadDHT.Provide(ctx, computedCID, true); err != nil {
+			log.Println("Error providing file CID:", err)
+		}
+
+		// Compute manifest CID and announce it too
+		manifestPath := filepath.Join(filePath, ".p2p", fileName+".json")
+		manifestCID, err := cidFromFile(manifestPath)
+		if err != nil {
+			log.Println("Error computing CID for manifest:", err)
+		} else {
+			if err := KadDHT.Provide(ctx, manifestCID, true); err != nil {
+				log.Println("Error providing manifest CID:", err)
+			}
+		}
+
 	} else {
 		log.Println("❌ File CID mismatch after reconstruction")
 		log.Println("Expected:", manifest.FileCID)
@@ -134,29 +154,46 @@ func DownloadFile(fileName, filePath string) {
 func dhtLookup(fileCID string) ([]peer.ID, error) {
 	ctx := context.Background()
 
-	// Decode the CID from the string
+	// Decode CID
 	c, err := cid.Decode(fileCID)
 	if err != nil {
 		return nil, fmt.Errorf("failed to convert CID: %v", err)
 	}
 
-	log.Print("FIND PROVIDER")
+	log.Print("FINDING PROVIDERS...")
 	providerChan := KadDHT.FindProvidersAsync(ctx, c, 10)
-	log.Print("FIND PROVIDER DONE")
 
-	// Keep looking for providers until find at least 1
-	var foundProvider []peer.ID
-	for len(foundProvider) == 0 {
-		for p := range providerChan {
-			log.Println("Discovered provider:", p.ID.String())
-			if p.ID != Node.ID() {
-				log.Printf("FIND PEER %v\n", p.ID.ShortString())
-				foundProvider = append(foundProvider, p.ID)
-			}
+	// Temporary slice to hold providers before filtering
+	var aliveProviders []peer.ID
+	providerSet := make(map[peer.ID]bool)
+
+	for p := range providerChan {
+		if p.ID == Node.ID() {
+			continue // skip self
 		}
+
+		if providerSet[p.ID] {
+			continue // skip duplicate
+		}
+		providerSet[p.ID] = true
+
+		log.Println("Discovered provider:", p.ID.String())
+
+		// Attempt to connect
+		if err := Node.Connect(ctx, p); err != nil {
+			log.Printf("Skipping %s (unreachable)", p.ID)
+			continue
+		}
+
+		log.Printf("✅ Peer %s is reachable", p.ID.ShortString())
+		aliveProviders = append(aliveProviders, p.ID)
 	}
 
-	return foundProvider, nil
+	if len(aliveProviders) == 0 {
+		return nil, fmt.Errorf("no reachable providers found")
+	}
+
+	return aliveProviders, nil
 }
 
 func requestChunk(providerID peer.ID, fileName string, chunkID int) ([]byte, error) {

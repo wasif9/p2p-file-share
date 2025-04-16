@@ -42,6 +42,7 @@ var (
 	TabSelected      = DownloadTab
 	DBManagerVer     string
 	DataDir          string
+	DownloadDir      string
 	ReverseProxyAddr string
 	PWD              string
 	Node             host.Host
@@ -163,6 +164,7 @@ func runGUI(bootstrapAddr string) {
 					upUI.dirPath = selectDir_Up.dirPath
 					upUI.LoadFiles()
 					DataDir = selectDir_Up.dirPath
+					DownloadDir = selectDir_Dn.dirPath
 
 					if err := os.MkdirAll(filepath.Join(dnUI.dirPath, ".p2p"), 0755); err != nil {
 						log.Fatalf("Failed to create .p2p folder in %v dir: %v", dnUI.dirPath, err)
@@ -229,7 +231,7 @@ func setupNode(ctx context.Context, bootstrapAddr string) {
 				log.Printf("Provide error: %v\n", err)
 			}
 			cancel()
-			time.Sleep(30 * time.Second)
+			time.Sleep(5 * time.Second)
 		}
 	}()
 	go func() {
@@ -291,6 +293,8 @@ func handleFileRequest(s network.Stream) {
 		}
 	}()
 
+	log.Println("Download DIR:", DownloadDir)
+
 	// Read request
 	buf := make([]byte, 1024)
 	n, err := s.Read(buf)
@@ -306,22 +310,30 @@ func handleFileRequest(s network.Stream) {
 	}
 	log.Println("Received request for:", requestedFile)
 
-	// Determine full file path
+	// Try locating file in Upload first, then fallback to Download
 	var filePath string
-	if requestedFile.Type == "manifest" {
-		filePath = filepath.Join(DataDir, ".p2p", requestedFile.FileName)
-	} else {
-		filePath = filepath.Join(DataDir, requestedFile.FileName)
-	}
-	log.Println("Serving file path:", filePath)
+	searchPaths := []string{DataDir, DownloadDir}
 
-	// Verify file exists
-	if _, err := os.Stat(filePath); os.IsNotExist(err) {
-		msg := "Error: open " + filePath + ": no such file or directory\n"
+	for _, basePath := range searchPaths {
+		if requestedFile.Type == "manifest" {
+			filePath = filepath.Join(basePath, ".p2p", requestedFile.FileName)
+		} else {
+			filePath = filepath.Join(basePath, requestedFile.FileName)
+		}
+		if _, err := os.Stat(filePath); err == nil {
+			break // file found
+		}
+		filePath = "" // reset if not found
+	}
+
+	if filePath == "" {
+		msg := "Error: requested file not found in Upload or Download folder\n"
 		log.Println(msg)
 		s.Write([]byte(msg))
 		return
 	}
+
+	log.Println("Serving file path:", filePath)
 
 	// Handle file or chunk response
 	if requestedFile.Type == "file" {
@@ -363,6 +375,6 @@ func handleFileRequest(s network.Stream) {
 			log.Println("Error writing to stream:", err)
 			return
 		}
-		log.Println("Sent full file:", requestedFile.FileName)
+		log.Println("Sent Manifest file:", requestedFile.FileName)
 	}
 }
