@@ -4,6 +4,7 @@ import (
 	"context"
 	"crypto/rand"
 	"encoding/json"
+	"io"
 	"log"
 	"os"
 	"path/filepath"
@@ -87,7 +88,7 @@ func main() {
 		log.Fatal("BOOTSTRAP_ADDR environment variable not set. Are you running peer-app in the same directory as the .env file?")
 	}
 
-	runGUI(bootstrapAddr)
+	go runGUI(bootstrapAddr)
 	app.Main()
 }
 
@@ -280,14 +281,17 @@ func loadOrGeneratePrivateKey() crypto.PrivKey {
 	}
 	return priv
 }
+
+const ChunkSize = 512 * 1024 // 512KB
+
 func handleFileRequest(s network.Stream) {
 	defer func() {
 		if err := s.Close(); err != nil {
-			log.Fatal("Peer app error when close file request stream", err)
+			log.Fatal("Peer app error when closing file request stream:", err)
 		}
 	}()
 
-	// Read requested filename
+	// Read request
 	buf := make([]byte, 1024)
 	n, err := s.Read(buf)
 	if err != nil {
@@ -297,41 +301,68 @@ func handleFileRequest(s network.Stream) {
 
 	var requestedFile types.DownloadRequest
 	if err := json.Unmarshal(buf[:n], &requestedFile); err != nil {
-		log.Println("Error reading request:", err)
+		log.Println("Error decoding JSON request:", err)
 		return
 	}
+	log.Println("Received request for:", requestedFile)
 
-	log.Println("Received request for file:", requestedFile)
-
-	// Construct file path based on peer's directory
+	// Determine full file path
 	var filePath string
 	if requestedFile.Type == "manifest" {
 		filePath = filepath.Join(DataDir, ".p2p", requestedFile.FileName)
 	} else {
 		filePath = filepath.Join(DataDir, requestedFile.FileName)
 	}
+	log.Println("Serving file path:", filePath)
 
-	log.Println("File path:", filePath)
-
-	// Check if file exists
+	// Verify file exists
 	if _, err := os.Stat(filePath); os.IsNotExist(err) {
-		log.Printf("File not found on provider node %v", filePath)
+		msg := "Error: open " + filePath + ": no such file or directory\n"
+		log.Println(msg)
+		s.Write([]byte(msg))
+		return
+	}
 
-		if _, err := s.Write([]byte("Error: open " + filePath + ": no such file or directory\n")); err != nil {
-			log.Println("Error writing to stream:", err)
+	// Handle file or chunk response
+	if requestedFile.Type == "file" {
+		// Respond with chunk at index `ChunkIndex`
+		f, err := os.Open(filePath)
+		if err != nil {
+			log.Println("Error opening file:", err)
+			return
 		}
-		return
-	}
+		defer f.Close()
 
-	// Read file and send it
-	data, err := os.ReadFile(filePath)
-	if err != nil {
-		log.Println("Error reading file:", err)
-		return
+		offset := int64(requestedFile.ChunkIndex) * int64(ChunkSize)
+		if _, err := f.Seek(offset, 0); err != nil {
+			log.Println("Seek error:", err)
+			return
+		}
+
+		chunk := make([]byte, ChunkSize)
+		bytesRead, err := f.Read(chunk)
+		if err != nil && err != io.EOF {
+			log.Println("Error reading chunk:", err)
+			return
+		}
+
+		if _, err := s.Write(chunk[:bytesRead]); err != nil {
+			log.Println("Error sending chunk:", err)
+			return
+		}
+		log.Printf("Sent chunk %d (%d bytes)\n", requestedFile.ChunkIndex, bytesRead)
+
+	} else {
+		// Manifest or full file
+		data, err := os.ReadFile(filePath)
+		if err != nil {
+			log.Println("Error reading file:", err)
+			return
+		}
+		if _, err := s.Write(data); err != nil {
+			log.Println("Error writing to stream:", err)
+			return
+		}
+		log.Println("Sent full file:", requestedFile.FileName)
 	}
-	if _, err := s.Write(data); err != nil {
-		log.Println("Error writing to stream:", err)
-		return
-	}
-	log.Println("Sent file:", requestedFile)
 }

@@ -9,6 +9,7 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"sync"
 
 	"github.com/ipfs/go-cid"
 	"github.com/libp2p/go-libp2p/core/peer"
@@ -34,42 +35,99 @@ func DownloadManifest(fileName, fileCID, filePath string) {
 }
 
 func DownloadFile(fileName, filePath string) {
-	// Open the file
+	// Load manifest
 	file, err := os.Open(filepath.Join(filePath, ".p2p", fileName+".json"))
 	if err != nil {
 		log.Fatalf("failed to open file: %v", err)
 	}
 	defer file.Close()
 
-	// Read all content
 	data, err := io.ReadAll(file)
 	if err != nil {
 		log.Fatalf("failed to read file: %v", err)
 	}
 
-	// Unmarshal into struct
 	var manifest types.ManifestData
 	if err := json.Unmarshal(data, &manifest); err != nil {
 		log.Fatalf("failed to unmarshal JSON: %v", err)
 	}
 
-	// Download file from providers
-	// TODO P2P chunking download
-	var providers []peer.ID
-	if providers, err = dhtLookup(manifest.Chunks[0]); err != nil {
-		PopupMessage("Fail to download file due to " + err.Error())
+	// Prepare for parallel download
+	totalChunks := len(manifest.Chunks)
+	chunkData := make([][]byte, totalChunks)
+	errChan := make(chan error, totalChunks)
+	var wg sync.WaitGroup
+
+	providers, err := dhtLookup(manifest.FileCID)
+
+	if err != nil {
+		errChan <- fmt.Errorf("File lookup failed: %w", err)
 		return
 	}
-	for {
 
-		for _, provider := range providers {
-			// 0 here is the chunk ID....
-			if err := requestFile(provider, fileName, filePath, manifest.FileCID, "file", 0); err != nil {
-				log.Println(err)
-				continue
+	for index, chunkCID := range manifest.Chunks {
+		wg.Add(1)
+		go func(idx int, cidStr string) {
+			defer wg.Done()
+
+			for _, provider := range providers {
+				buffer, err := requestChunk(provider, fileName, idx)
+				if err != nil {
+					log.Printf("Chunk %d failed from provider %s: %v", idx, provider, err)
+					continue
+				}
+
+				computedCID, err := cidFromBytes(buffer)
+				log.Printf("Chunk %d CID: %s", idx, computedCID.String())
+				log.Printf("Expected CID: %s", cidStr)
+				if err != nil || computedCID.String() != cidStr {
+					errChan <- fmt.Errorf("chunk %d integrity check failed", idx)
+					return
+				}
+
+				chunkData[idx] = buffer
+				return
 			}
-			return
+
+			errChan <- fmt.Errorf("chunk %d failed: no valid provider", idx)
+		}(index, chunkCID)
+	}
+
+	wg.Wait()
+	close(errChan)
+
+	if len(errChan) > 0 {
+		for err := range errChan {
+			log.Println("Error during chunk download:", err)
 		}
+		PopupMessage("Some chunks failed to download")
+		return
+	}
+
+	// Reconstruct file
+	savePath := filepath.Join(filePath, fileName)
+	f, err := os.Create(savePath)
+	if err != nil {
+		log.Println("Failed to create file for reconstruction:", err)
+		return
+	}
+	defer f.Close()
+	for _, chunk := range chunkData {
+		f.Write(chunk)
+	}
+
+	// Verify file integrity
+	computedCID, err := cidFromFile(savePath)
+	if err != nil {
+		log.Println("Error computing CID for reconstructed file:", err)
+		return
+	}
+	if computedCID.String() == manifest.FileCID {
+		log.Println("✅ File reconstruction integrity verified")
+	} else {
+		log.Println("❌ File CID mismatch after reconstruction")
+		log.Println("Expected:", manifest.FileCID)
+		log.Println("Got:", computedCID.String())
 	}
 }
 
@@ -99,6 +157,30 @@ func dhtLookup(fileCID string) ([]peer.ID, error) {
 	}
 
 	return foundProvider, nil
+}
+
+func requestChunk(providerID peer.ID, fileName string, chunkID int) ([]byte, error) {
+	ctx := context.Background()
+	s, err := Node.NewStream(ctx, providerID, Protocol)
+	if err != nil {
+		return nil, err
+	}
+	defer s.Close()
+
+	request := types.DownloadRequest{
+		FileName:   fileName,
+		ChunkIndex: chunkID,
+		Type:       "file",
+	}
+	jsonData, err := json.Marshal(request)
+	if err != nil {
+		return nil, err
+	}
+	if _, err := s.Write(jsonData); err != nil {
+		return nil, err
+	}
+
+	return io.ReadAll(s)
 }
 
 func requestFile(providerID peer.ID, fileName, dirPath, expectedCID, downloadType string, chunkID int) error {
