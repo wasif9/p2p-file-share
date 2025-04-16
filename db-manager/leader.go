@@ -172,13 +172,22 @@ func election() {
 	leaderIndex = highestIndex
 	log.Printf("new leader is %d\n", leaderIndex)
 
-	notifyFollowers(leaderIndex)
+	acks := notifyFollowers(leaderIndex)
+	managerCount := len(allConfigs)
+	if acks <= managerCount/2 {
+		log.Printf("not enough acks from followers, only %d out of %d\n", acks, managerCount)
+		log.Println("restarting election")
+		leaderIndex = -1 // this will trigger a new election on the next heartbeat. recursing here could cause a stack overflow
+		return
+	}
 	notifyReverseProxy(leaderIndex)
 }
 
-func notifyFollowers(leaderIndex int) {
+func notifyFollowers(leaderIndex int) int {
 	log.Println("notifying followers...")
 	client := &http.Client{Timeout: time.Second * 1}
+
+	successes := 0
 
 	for _, peerNodeConfig := range allConfigs {
 		resp, err := client.Post(
@@ -197,11 +206,12 @@ func notifyFollowers(leaderIndex int) {
 
 		if resp.StatusCode == http.StatusOK {
 			log.Printf("node %d ack'ed notification", peerNodeConfig.Index)
-
+			successes++
 		} else {
 			log.Printf("node %d says %s: %s", peerNodeConfig.Index, resp.Status, string(respBytes))
 		}
 	}
+	return successes
 }
 
 func notifyReverseProxy(leaderIndex int) {
