@@ -113,7 +113,9 @@ func DownloadFile(fileName, filePath string, downloadFile *Download) {
 	}
 	defer f.Close()
 	for _, chunk := range chunkData {
-		f.Write(chunk)
+		if _, err := f.Write(chunk); err != nil {
+			log.Fatal("Error when writing data to file ", savePath, err)
+		}
 	}
 
 	// Verify file integrity

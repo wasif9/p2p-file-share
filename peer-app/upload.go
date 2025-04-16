@@ -271,8 +271,12 @@ func (upload *UploadUI) uploadFile() {
 		return
 	}
 	log.Println("Registering File CID and Manifest CID to DHT")
-	KadDHT.Provide(ctx, fullFileCID, true)
-	KadDHT.Provide(ctx, manifestCID, true)
+	if err := KadDHT.Provide(ctx, fullFileCID, true); err != nil {
+		log.Println("Error when providing fileCID of file ", fileName, " to DHT", err)
+	}
+	if err := KadDHT.Provide(ctx, manifestCID, true); err != nil {
+		log.Println("Error when providing manifestCID of file ", fileName, " to DHT", err)
+	}
 
 	// 5. Upload manifest CID to reverse proxy
 	manifestToSend := types.Manifest{
@@ -324,14 +328,16 @@ func (upload *UploadUI) uploadFile() {
 	if resp.StatusCode == http.StatusCreated {
 		PopupMessage("Uploaded & Provided: " + fileName)
 	} else {
-		PopupMessage("Cannot upload file due to server error: \n" + string(respSer))
+		PopupMessage("Shared to other peers but cannot upload file due to server error: \n" + string(respSer))
 	}
 }
 
 // Helper to write the manifest.json file and return the full path
 func writeManifestToDisk(manifest types.ManifestData) (string, error) {
 	manifestDir := filepath.Join(DataDir, ".p2p")
-	os.MkdirAll(manifestDir, os.ModePerm)
+	if err := os.MkdirAll(manifestDir, os.ModePerm); err != nil {
+		log.Fatal("Error when creating directory: ", err)
+	}
 	manifestPath := filepath.Join(manifestDir, manifest.FileName+".json")
 	f, err := os.Create(manifestPath)
 	if err != nil {

@@ -64,7 +64,9 @@ func chunkAndStoreChunks(filePath string) (map[int]string, cid.Cid, error) {
 
 	chunkMap := make(map[int]string)
 	chunkFolder := filepath.Join(DataDir, ".p2p", filepath.Base(filePath)+"_chunks")
-	os.MkdirAll(chunkFolder, os.ModePerm)
+	if err := os.MkdirAll(chunkFolder, os.ModePerm); err != nil {
+		log.Fatal("Error when creating dir: ", chunkFolder)
+	}
 
 	var fullData []byte
 	buf := make([]byte, chunkSize)

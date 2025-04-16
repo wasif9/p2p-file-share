@@ -329,7 +329,9 @@ func handleFileRequest(s network.Stream) {
 	if filePath == "" {
 		msg := "Error: requested file not found in Upload or Download folder\n"
 		log.Println(msg)
-		s.Write([]byte(msg))
+		if _, err := s.Write([]byte(msg)); err != nil {
+			log.Fatal("Error while handling file requests", err)
+		}
 		return
 	}
 
