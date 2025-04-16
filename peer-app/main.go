@@ -34,6 +34,7 @@ const (
 	ProgressTab
 )
 const (
+	AppTitle  = "Peerify"
 	Protocol  = "/file-sharing/1.0.0"
 	TmpFolder = ".p2p"
 	ChunkSize = 512 * 1024 // 512KB
@@ -97,7 +98,7 @@ func main() {
 // GUI function
 func runGUI(bootstrapAddr string) {
 	w := new(app.Window)
-	w.Option(app.Title("Peerify"))
+	w.Option(app.Title(AppTitle))
 	w.Option(app.Size(unit.Dp(800), unit.Dp(600)))
 	th := material.NewTheme()
 	var ops op.Ops
