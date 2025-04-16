@@ -1,6 +1,6 @@
 {
   "reverse-proxy": {
-    "address": "10.12.190.40:7777"
+    "address": "10.13.177.83:7777"
   },
   "db-managers": [
     {
