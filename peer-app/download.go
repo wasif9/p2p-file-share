@@ -373,7 +373,7 @@ func requestFile(node host.Host, providerID peer.ID, fileName string, dirPath st
 	}
 	defer func() {
 		if err := s.Close(); err != nil {
-			log.Fatal("Peer app error when close request file request", err)
+			log.Println("Peer app error when close request file request", err)
 		}
 	}()
 
