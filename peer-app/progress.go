@@ -3,6 +3,7 @@ package main
 import (
 	"image/color"
 	"log"
+	"sync"
 
 	"gioui.org/layout"
 	"gioui.org/unit"
@@ -17,12 +18,13 @@ type Download struct {
 	Progress float32
 	Checked  widget.Bool
 	Shown    bool
+	mu       sync.Mutex
 }
 
 // UI struct manages the downloading files list
 type ProgressUI struct {
 	list      widget.List
-	files     []Download
+	files     []*Download
 	deleteBtn widget.Clickable
 }
 
@@ -88,7 +90,7 @@ func (ui *ProgressUI) ProgressLayout(gtx layout.Context, th *material.Theme) lay
 					}
 
 					return inset.Layout(gtx, func(gtx layout.Context) layout.Dimensions {
-						return ui.layoutDownloadItem(gtx, th, &ui.files[i])
+						return ui.layoutDownloadItem(gtx, th, ui.files[i])
 					})
 				} else {
 					return layout.Dimensions{}
@@ -117,7 +119,8 @@ func (ui *ProgressUI) layoutDownloadItem(gtx layout.Context, th *material.Theme,
 				}),
 				// Progress Bar
 				layout.Rigid(func(gtx layout.Context) layout.Dimensions {
-					bar := material.ProgressBar(th, file.Progress)
+					progress := file.GetProgress()
+					bar := material.ProgressBar(th, progress)
 					return bar.Layout(gtx)
 				}),
 			)
@@ -134,16 +137,20 @@ func (ui *ProgressUI) AddDownload(name string, hash string) *Download {
 	log.Println("New file " + name + "starts to download")
 	newFile := Download{Hash: hash, Name: name, Progress: 0, Shown: true}
 
-	ui.files = append(ui.files, newFile)
+	ui.files = append(ui.files, &newFile)
 
-	return &ui.files[len(ui.files)-1]
+	return ui.files[len(ui.files)-1]
 }
 
 // Check if is in download list
 func (ui *ProgressUI) IsInDownload(name string, hash string) bool {
 	for _, file := range ui.files {
+		if file == nil {
+			continue
+		}
 		// If file is in the download list
-		if hash == file.Hash && file.Progress != 1 {
+		progress := file.GetProgress()
+		if hash == file.Hash && progress != 1 {
 			return true
 		}
 	}
@@ -156,13 +163,20 @@ func (ui *ProgressUI) deleteCheckedFiles() {
 	for i := range ui.files {
 		// Let checked file not to be shown in the list
 		if ui.files[i].Checked.Value {
-			if ui.files[i].Progress != 1 {
-				// TODO (low priority) need a function in P2P to stop downloading
-				PopupMessage("Cannot delete files that are downloading!")
-			} else {
-				ui.files[i].Shown = false
-				log.Println(ui.files[i].Name + " is removed from the list")
-			}
+			ui.files[i].Shown = false
+			log.Println(ui.files[i].Name + " is removed from the list")
 		}
 	}
+}
+
+func (file *Download) UpdateProgress(totalChunks int) {
+	file.mu.Lock()
+	defer file.mu.Unlock()
+	file.Progress += 1 / float32(totalChunks)
+}
+
+func (file *Download) GetProgress() float32 {
+	file.mu.Lock()
+	defer file.mu.Unlock()
+	return file.Progress
 }

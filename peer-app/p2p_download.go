@@ -34,7 +34,7 @@ func DownloadManifest(fileName, fileCID, filePath string) {
 	}
 }
 
-func DownloadFile(fileName, filePath string) {
+func DownloadFile(fileName, filePath string, downloadFile *Download) {
 	// Load manifest
 	file, err := os.Open(filepath.Join(filePath, ".p2p", fileName+".json"))
 	if err != nil {
@@ -89,6 +89,7 @@ func DownloadFile(fileName, filePath string) {
 			}
 
 			chunkData[idx] = buffer
+			downloadFile.UpdateProgress(totalChunks)
 		}(index, chunkCID, provider)
 	}
 

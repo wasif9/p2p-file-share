@@ -332,10 +332,9 @@ func (ui *DownloadUI) download(prgUI *ProgressUI) {
 		// 	return
 		// }
 
-		// TODO Update download progress = data received / file size
 		downloadFile.Progress = 0
 
-		DownloadFile(manifest.Name, ui.dirPath)
+		DownloadFile(manifest.Name, ui.dirPath, downloadFile)
 
 		// TODO Keep checking next provider or trying until some providers is online
 		// if err := requestFile(peerID, manifest.Name, ui.dirPath, manifest.Hash); err != nil {
@@ -348,9 +347,6 @@ func (ui *DownloadUI) download(prgUI *ProgressUI) {
 		// 	}
 		// 	return
 		// }
-
-		// Set the progress bar to 100% (hardcode for now)
-		downloadFile.Progress = 1
 
 		PopupMessage(fileName + " download finish")
 	}()
