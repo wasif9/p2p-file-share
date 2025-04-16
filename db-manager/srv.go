@@ -155,7 +155,6 @@ func propagate(newManifest types.Manifest) int {
 		}
 		if resp.StatusCode != http.StatusCreated {
 			log.Printf("error response from %d, %s: %s\n", i, resp.Status, string(respBytes))
-			continue
 		}
 		log.Printf("%d acked\n", i)
 		successes += 1
