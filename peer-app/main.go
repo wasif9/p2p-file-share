@@ -36,6 +36,7 @@ const (
 const (
 	Protocol  = "/file-sharing/1.0.0"
 	TmpFolder = ".p2p"
+	ChunkSize = 512 * 1024 // 512KB
 )
 
 var (
@@ -240,10 +241,8 @@ func setupNode(ctx context.Context, bootstrapAddr string) {
 			peerChan := kad.FindProvidersAsync(ctxFind, announceKey, 10)
 			for p := range peerChan {
 				if p.ID != node.ID() {
-					//log.Printf("Discovered peer: %s\n", p.ID.String())
 					err := node.Connect(ctx, p)
 					if err != nil {
-						//log.Printf("Failed to connect to %s: %v", p.ID, err)
 						continue
 					}
 					log.Printf("Discovered peer: %s\n", p.ID.String())
@@ -283,8 +282,6 @@ func loadOrGeneratePrivateKey() crypto.PrivKey {
 	}
 	return priv
 }
-
-const ChunkSize = 512 * 1024 // 512KB
 
 func handleFileRequest(s network.Stream) {
 	defer func() {

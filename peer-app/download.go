@@ -320,33 +320,11 @@ func (ui *DownloadUI) download(prgUI *ProgressUI) {
 
 		// ------------------------------------------------------------
 		// !P2P Download
-
-		// Check if the manifest exists first
 		DownloadManifest(manifest.Name, manifest.Hash, filepath.Join(ui.dirPath, ".p2p"))
-
-		// peerID, err := dhtLookup(manifest.Hash)
-		// if err != nil {
-		// 	PopupMessage("Cannot download file \ndue to no providers")
-		// 	log.Println("Error finding provider:", err)
-		// 	downloadFile.Shown = false
-		// 	return
-		// }
 
 		downloadFile.Progress = 0
 
 		DownloadFile(manifest.Name, ui.dirPath, downloadFile)
-
-		// TODO Keep checking next provider or trying until some providers is online
-		// if err := requestFile(peerID, manifest.Name, ui.dirPath, manifest.Hash); err != nil {
-		// 	if strings.HasPrefix(err.Error(), "File Not Found") {
-		// 		PopupMessage("File Not Found: " + fileName)
-		// 	} else if strings.HasPrefix(err.Error(), "Integrity check failed") {
-		// 		PopupMessage("Integrity check failed: " + fileName)
-		// 	} else {
-		// 		PopupMessage("Fail to get file " + fileName + " from peers")
-		// 	}
-		// 	return
-		// }
 
 		PopupMessage(fileName + " download finish")
 	}()
