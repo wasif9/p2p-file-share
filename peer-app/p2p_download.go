@@ -152,10 +152,14 @@ func requestFile(providerID peer.ID, fileName, dirPath, expectedCID, downloadTyp
 	// Construct the correct save path in the peer's directory
 	savePath := filepath.Join(dirPath, fileName)
 
+	// Try to create a parent folder
+	if err := os.MkdirAll(dirPath, 0755); err != nil {
+		log.Fatalf("Failed to create .p2p folder in %v dir: %v", savePath, err)
+	}
 	// Write the file data to correct directory
 	err = os.WriteFile(savePath, data, 0644)
 	if err != nil {
-		return err
+		log.Fatalf("Failed to create file %v: %v", savePath, err)
 	}
 
 	log.Printf("Received and saved file as %s\n", fileName)
