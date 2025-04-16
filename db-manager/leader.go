@@ -55,11 +55,10 @@ func monitorLeader(db *gorm.DB) {
 		}
 
 		if heartbeat.Timestamp < timestamp {
-			log.Printf("my timestamp is newer than leader's (%v < %v), initiating reverse catchup",
+			log.Printf("my timestamp is newer than leader's (%v < %v), initiating election",
 				heartbeat.Timestamp, timestamp)
-			if err := reverseLeaderCatchup(db, allConfigs[leaderIndex].Address); err != nil {
-				log.Printf("reverse catchup failed: %s", err)
-			}
+			election()
+			continue
 		}
 	}
 }
