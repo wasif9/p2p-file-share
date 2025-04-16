@@ -1,11 +1,11 @@
 {
   "reverse-proxy": {
-    "address": "172.20.10.5:7777"
+    "address": "10.12.190.40:7777"
   },
   "db-managers": [
     {
       "index": 0,
-      "address": "172.20.10.2:8080",
+      "address": "10.12.190.40:8080",
       "version": "v1",
       "pg-host": "localhost",
       "pg-user": "postgres",
@@ -14,7 +14,7 @@
     },
     {
       "index": 1,
-      "address": "172.20.10.3:8080",
+      "address": "10.12.181.101:8080",
       "version": "v1",
       "pg-host": "localhost",
       "pg-user": "postgres",
@@ -23,7 +23,7 @@
     },
     {
       "index": 2,
-      "address": "172.20.10.4:8080",
+      "address": "10.12.190.40:8080",
       "version": "v1",
       "pg-host": "localhost",
       "pg-user": "postgres",
