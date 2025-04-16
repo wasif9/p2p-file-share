@@ -53,6 +53,13 @@ func monitorLeader(db *gorm.DB) {
 			log.Printf("leader heartbeat is newer than mine (%v > %v)\n", heartbeat.Timestamp, timestamp)
 			catchup(timestamp)
 		}
+
+		if heartbeat.Timestamp < timestamp {
+			log.Printf("my timestamp is newer than leader's (%v < %v), initiating election",
+				heartbeat.Timestamp, timestamp)
+			election()
+			continue
+		}
 	}
 }
 
@@ -108,7 +115,6 @@ func catchup(myTimestamp int) {
 		}
 		log.Printf("self acked\n")
 	}
-
 }
 
 func election() {
@@ -123,7 +129,7 @@ func election() {
 
 	// poll everyone for their heartbeat to get the latest timestamp
 	for _, peerNodeConfig := range allConfigs {
-		resp, err := client.Get(fmt.Sprintf("http://%s/api/v1/heartbeat", peerNodeConfig.Address))
+		resp, err := client.Get(fmt.Sprintf("http://%s/api/v1/heartbeat?facilitator=%d", peerNodeConfig.Address, cfg.Index))
 		if err != nil {
 			log.Printf("failed to contact %d: %s", peerNodeConfig.Index, err)
 			continue
@@ -149,7 +155,7 @@ func election() {
 	highestTimestamp := int(0)
 	highestIndex := cfg.Index
 	for nodeIndex, timestamp := range timestamps {
-		if timestamp > highestTimestamp { // the node with higher timestamp wins 
+		if timestamp > highestTimestamp { // the node with higher timestamp wins
 			highestTimestamp = timestamp
 			highestIndex = nodeIndex
 		} else if timestamp == highestTimestamp {
@@ -162,17 +168,32 @@ func election() {
 	if highestIndex == -1 {
 		log.Fatal("no nodes found")
 	}
+
+	if electionFacilitator != -1 && electionFacilitator < cfg.Index {
+		log.Printf("node %d is not the election facilitator, aborting election\n", cfg.Index)
+		return
+	}
+
 	log.Printf("node %d has the highest timestamp: %v\n", highestIndex, highestTimestamp)
 	leaderIndex = highestIndex
 	log.Printf("new leader is %d\n", leaderIndex)
 
-	notifyFollowers(leaderIndex)
+	acks := notifyFollowers(leaderIndex)
+	managerCount := len(allConfigs)
+	if acks <= managerCount/2 {
+		log.Printf("not enough acks from followers, only %d out of %d\n", acks, managerCount)
+		log.Println("restarting election")
+		leaderIndex = -1 // this will trigger a new election on the next heartbeat. recursing here could cause a stack overflow
+		return
+	}
 	notifyReverseProxy(leaderIndex)
 }
 
-func notifyFollowers(leaderIndex int) {
+func notifyFollowers(leaderIndex int) int {
 	log.Println("notifying followers...")
 	client := &http.Client{Timeout: time.Second * 1}
+
+	successes := 0
 
 	for _, peerNodeConfig := range allConfigs {
 		resp, err := client.Post(
@@ -191,11 +212,12 @@ func notifyFollowers(leaderIndex int) {
 
 		if resp.StatusCode == http.StatusOK {
 			log.Printf("node %d ack'ed notification", peerNodeConfig.Index)
-
+			successes++
 		} else {
 			log.Printf("node %d says %s: %s", peerNodeConfig.Index, resp.Status, string(respBytes))
 		}
 	}
+	return successes
 }
 
 func notifyReverseProxy(leaderIndex int) {

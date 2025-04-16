@@ -17,6 +17,7 @@ import (
 )
 
 var startTime time.Time
+var electionFacilitator int = -1
 
 // special func name that runs once at beginning
 func init() {
@@ -155,7 +156,6 @@ func propagate(newManifest types.Manifest) int {
 		}
 		if resp.StatusCode != http.StatusCreated {
 			log.Printf("error response from %d, %s: %s\n", i, resp.Status, string(respBytes))
-			continue
 		}
 		log.Printf("%d acked\n", i)
 		successes += 1
@@ -174,6 +174,16 @@ func heartbeatHandler(db *gorm.DB) func(http.ResponseWriter, *http.Request) {
 		if r.Method != http.MethodGet {
 			http.Error(w, "Only GET is allowed", http.StatusMethodNotAllowed)
 			return
+		}
+
+		// check the facilitator query parameter
+		facilitator := r.URL.Query().Get("facilitator")
+		if facilitator != "" {
+			// stop the current election if there is one, if the facilitator
+			electionFacilitator, err = strconv.Atoi(facilitator)
+			if err != nil {
+				log.Fatal(err)
+			}
 		}
 
 		w.Header().Set("Content-Type", "application/json")
@@ -228,6 +238,7 @@ func leaderHandler(w http.ResponseWriter, r *http.Request) {
 		log.Fatal("Error when POST leader", err)
 	}
 
+	electionFacilitator = -1 // reset the election facilitator
 }
 
 func catchupHandler(db *gorm.DB) func(http.ResponseWriter, *http.Request) {
