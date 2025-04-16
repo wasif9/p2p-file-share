@@ -129,7 +129,7 @@ func election() {
 
 	// poll everyone for their heartbeat to get the latest timestamp
 	for _, peerNodeConfig := range allConfigs {
-		resp, err := client.Get(fmt.Sprintf("http://%s/api/v1/heartbeat", peerNodeConfig.Address))
+		resp, err := client.Get(fmt.Sprintf("http://%s/api/v1/heartbeat?facilitator=%d", peerNodeConfig.Address, cfg.Index))
 		if err != nil {
 			log.Printf("failed to contact %d: %s", peerNodeConfig.Index, err)
 			continue
@@ -168,6 +168,12 @@ func election() {
 	if highestIndex == -1 {
 		log.Fatal("no nodes found")
 	}
+
+	if electionFacilitator != -1 && electionFacilitator < cfg.Index {
+		log.Printf("node %d is not the election facilitator, aborting election\n", cfg.Index)
+		return
+	}
+
 	log.Printf("node %d has the highest timestamp: %v\n", highestIndex, highestTimestamp)
 	leaderIndex = highestIndex
 	log.Printf("new leader is %d\n", leaderIndex)
