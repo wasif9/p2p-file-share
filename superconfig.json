@@ -5,7 +5,7 @@
   "db-managers": [
     {
       "index": 0,
-      "address": "10.12.190.40:8080",
+      "address": "10.12.181.101:8080",
       "version": "v1",
       "pg-host": "localhost",
       "pg-user": "postgres",
@@ -14,7 +14,7 @@
     },
     {
       "index": 1,
-      "address": "10.12.181.101:8080",
+      "address": "10.12.164.111:8080",
       "version": "v1",
       "pg-host": "localhost",
       "pg-user": "postgres",
