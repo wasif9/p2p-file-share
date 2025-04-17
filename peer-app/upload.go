@@ -311,7 +311,11 @@ func (upload *UploadUI) uploadFile() {
 		log.Println("Error sending POST request:", err)
 		return
 	}
-	defer resp.Body.Close()
+	defer func() {
+		if err := resp.Body.Close(); err != nil {
+			log.Println("Error when closing response body ", err)
+		}
+	}()
 
 	respSer, err := io.ReadAll(resp.Body)
 	if err != nil {
@@ -323,7 +327,9 @@ func (upload *UploadUI) uploadFile() {
 	log.Println("Resp Body:", string(respSer))
 
 	// 6. Cleanup chunk directory
-	os.RemoveAll(filepath.Join(DataDir, ".p2p", fileName+"_chunks"))
+	if err := os.RemoveAll(filepath.Join(DataDir, ".p2p", fileName+"_chunks")); err != nil {
+		log.Println("Error when cleaning up chunks directory ", err)
+	}
 
 	if resp.StatusCode == http.StatusCreated {
 		PopupMessage("Uploaded & Provided: " + fileName)
@@ -343,7 +349,12 @@ func writeManifestToDisk(manifest types.ManifestData) (string, error) {
 	if err != nil {
 		return "", err
 	}
-	defer f.Close()
+	defer func() {
+		if err := f.Close(); err != nil {
+			log.Println("Error when closing manifest file ", err)
+		}
+	}()
+
 	if err := json.NewEncoder(f).Encode(manifest); err != nil {
 		return "", err
 	}

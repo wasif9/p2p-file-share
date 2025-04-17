@@ -60,7 +60,11 @@ func chunkAndStoreChunks(filePath string) (map[int]string, cid.Cid, error) {
 	if err != nil {
 		return nil, cid.Cid{}, err
 	}
-	defer file.Close()
+	defer func() {
+		if err := file.Close(); err != nil {
+			log.Println("Error when closing chunks ", err)
+		}
+	}()
 
 	chunkMap := make(map[int]string)
 	chunkFolder := filepath.Join(DataDir, ".p2p", filepath.Base(filePath)+"_chunks")

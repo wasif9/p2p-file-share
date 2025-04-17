@@ -343,7 +343,11 @@ func handleFileRequest(s network.Stream) {
 			log.Println("Error opening file:", err)
 			return
 		}
-		defer f.Close()
+		defer func() {
+			if err := f.Close(); err != nil {
+				log.Println("Error when closing file", err)
+			}
+		}()
 
 		offset := int64(requestedFile.ChunkIndex) * int64(ChunkSize)
 		if _, err := f.Seek(offset, 0); err != nil {

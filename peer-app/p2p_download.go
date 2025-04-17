@@ -40,7 +40,11 @@ func DownloadFile(fileName, filePath string, downloadFile *Download) {
 	if err != nil {
 		log.Fatalf("failed to open file: %v", err)
 	}
-	defer file.Close()
+	defer func() {
+		if err := file.Close(); err != nil {
+			log.Println("Error when closing file", err)
+		}
+	}()
 
 	data, err := io.ReadAll(file)
 	if err != nil {
@@ -61,7 +65,7 @@ func DownloadFile(fileName, filePath string, downloadFile *Download) {
 	providers, err := dhtLookup(manifest.FileCID)
 
 	if err != nil {
-		errChan <- fmt.Errorf("File lookup failed: %w", err)
+		errChan <- fmt.Errorf("file lookup failed: %w", err)
 		return
 	}
 
@@ -111,7 +115,12 @@ func DownloadFile(fileName, filePath string, downloadFile *Download) {
 		log.Println("Failed to create file for reconstruction:", err)
 		return
 	}
-	defer f.Close()
+	defer func() {
+		if err := f.Close(); err != nil {
+			log.Println("Error when closing file", err)
+		}
+	}()
+
 	for _, chunk := range chunkData {
 		if _, err := f.Write(chunk); err != nil {
 			log.Fatal("Error when writing data to file ", savePath, err)
@@ -205,7 +214,11 @@ func requestChunk(providerID peer.ID, fileName string, chunkID int) ([]byte, err
 	if err != nil {
 		return nil, err
 	}
-	defer s.Close()
+	defer func() {
+		if err := s.Close(); err != nil {
+			log.Println("Error when closing stream", err)
+		}
+	}()
 
 	request := types.DownloadRequest{
 		FileName:   fileName,
