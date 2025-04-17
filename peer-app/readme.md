@@ -11,5 +11,5 @@
 
 
 ## (Windows) Run & Build
-1. Run ``go run .`` to execute the frontend
+1. Run ``go run ./... ../superconfig`` to execute the frontend
 2. Run ``go build -ldflags "-s -w -H windowsgui"`` to build an executable binary
