@@ -2,11 +2,12 @@ package main
 
 import (
 	"context"
+	"crypto/rand"
 	"encoding/json"
+	"io"
 	"log"
 	"os"
 	"path/filepath"
-	"strings"
 	"time"
 
 	"gioui.org/app"
@@ -19,6 +20,7 @@ import (
 	"github.com/joho/godotenv"
 	libp2p "github.com/libp2p/go-libp2p"
 	dht "github.com/libp2p/go-libp2p-kad-dht"
+	"github.com/libp2p/go-libp2p/core/crypto"
 	"github.com/libp2p/go-libp2p/core/host"
 	"github.com/libp2p/go-libp2p/core/network"
 	"github.com/libp2p/go-libp2p/core/peer"
@@ -32,15 +34,21 @@ const (
 	ProgressTab
 )
 const (
-	Protocol = "/file-sharing/1.0.0"
+	AppTitle  = "Peerify"
+	Protocol  = "/file-sharing/1.0.0"
+	TmpFolder = ".p2p"
+	ChunkSize = 512 * 1024 // 512KB
 )
 
 var (
 	TabSelected      = DownloadTab
 	DBManagerVer     string
 	DataDir          string
+	DownloadDir      string
 	ReverseProxyAddr string
 	PWD              string
+	Node             host.Host
+	KadDHT           *dht.IpfsDHT
 )
 
 func init() {
@@ -83,36 +91,14 @@ func main() {
 		log.Fatal("BOOTSTRAP_ADDR environment variable not set. Are you running peer-app in the same directory as the .env file?")
 	}
 
-	ctx := context.Background()
-
-	// 1) Create a new libp2p node + Kademlia DHT
-	node, kad := setupNode(ctx, bootstrapAddr)
-	// go func() {
-	// 	for {
-	// 		peers := node.Peerstore().Peers()
-	// 		log.Println("Known peers:", peers)
-	// 		time.Sleep(5 * time.Second) // Print every 5 seconds
-	// 		log.Println("dht size for node:", node.ID(), kad.RoutingTable().Size())
-	// 	}
-	// }()
-
-	log.Println("Node ID:", node.ID())
-	for _, addr := range node.Addrs() {
-		log.Println(" -", addr, "/p2p/", node.ID())
-	}
-
-	// 2) Handle inbound file requests on our protocol
-	node.SetStreamHandler(Protocol, handleFileRequest)
-
-	// 3) GUI
-	go runGUI(node, kad)
+	go runGUI(bootstrapAddr)
 	app.Main()
 }
 
 // GUI function
-func runGUI(node host.Host, kad *dht.IpfsDHT) {
+func runGUI(bootstrapAddr string) {
 	w := new(app.Window)
-	w.Option(app.Title("Peerify"))
+	w.Option(app.Title(AppTitle))
 	w.Option(app.Size(unit.Dp(800), unit.Dp(600)))
 	th := material.NewTheme()
 	var ops op.Ops
@@ -142,16 +128,12 @@ func runGUI(node host.Host, kad *dht.IpfsDHT) {
 	selectDir_Up.LoadDirs()
 
 	dnUI := &DownloadUI{
-		node:   node,
-		kadDHT: kad,
 		list: widget.List{
 			List: layout.List{Axis: layout.Vertical},
 		},
 		loading: false,
 	}
 	upUI := &UploadUI{
-		node:   node,
-		kadDHT: kad,
 		list: widget.List{
 			List: layout.List{Axis: layout.Vertical},
 		},
@@ -184,6 +166,23 @@ func runGUI(node host.Host, kad *dht.IpfsDHT) {
 					upUI.dirPath = selectDir_Up.dirPath
 					upUI.LoadFiles()
 					DataDir = selectDir_Up.dirPath
+					DownloadDir = selectDir_Dn.dirPath
+
+					if err := os.MkdirAll(filepath.Join(dnUI.dirPath, ".p2p"), 0755); err != nil {
+						log.Fatalf("Failed to create .p2p folder in %v dir: %v", dnUI.dirPath, err)
+					}
+
+					// Create a new libp2p node + Kademlia DHT
+					ctx := context.Background()
+					setupNode(ctx, bootstrapAddr)
+
+					// Print Node ID & its address
+					log.Println("Node ID:", Node.ID())
+					log.Println(" -", Node.Addrs()[0], "/p2p/", Node.ID())
+
+					// Handle inbound file requests on our protocol
+					Node.SetStreamHandler(Protocol, handleFileRequest)
+
 					set = true
 				}
 				MainLayout(gtx, th, dnUI, upUI, prUI, tabButtons)
@@ -195,25 +194,20 @@ func runGUI(node host.Host, kad *dht.IpfsDHT) {
 }
 
 // setupNode creates a libp2p host + Kademlia DHT, optionally connects to a bootstrap node.
-func setupNode(ctx context.Context, bootstrapAddr string) (host.Host, *dht.IpfsDHT) {
-	// 1) Create a libp2p host
-	node, err := libp2p.New()
+func setupNode(ctx context.Context, bootstrapAddr string) {
+	priv := loadOrGeneratePrivateKey()
+	node, err := libp2p.New(libp2p.Identity(priv))
 	if err != nil {
 		log.Fatal("Failed to create libp2p host:", err)
 	}
-
-	// 2) Create a DHT
 	kad, err := dht.New(ctx, node, dht.Mode(dht.ModeServer))
 	if err != nil {
 		log.Fatal("Failed to create DHT:", err)
 	}
-
-	// 3) Bootstrap the DHT
 	if err := kad.Bootstrap(ctx); err != nil {
 		log.Fatal("Failed to bootstrap DHT:", err)
 	}
 
-	// 4) If we have a bootstrap multiaddr, connect to it
 	log.Println("Dialing bootstrap:", bootstrapAddr)
 	ma, err := multiaddr.NewMultiaddr(bootstrapAddr)
 	if err != nil {
@@ -223,31 +217,15 @@ func setupNode(ctx context.Context, bootstrapAddr string) (host.Host, *dht.IpfsD
 	if err != nil {
 		log.Fatalf("AddrInfoFromP2pAddr failed: %s", err)
 	}
-
-	// Just call node.Connect(...), no need for (*host).Connect
 	log.Println("Connecting to bootstrap peer:", info.ID)
 	if err := node.Connect(ctx, *info); err != nil {
 		log.Fatalf("Failed to connect to bootstrap: %s", err)
 	}
-	log.Println("Connected to bootstrap!")
-	// Explicitly call FindPeer to populate your local routing table
-	// ctx, cancel := context.WithTimeout(ctx, time.Second*10)
-	// defer cancel()
 
-	// log.Println("Populating routing table...")
-	// peerInfo, err := kad.FindPeer(ctx, info.ID)
-	// if err != nil {
-	// 	log.Printf("FindPeer error (might be okay initially): %v\n", err)
-	// } else {
-	// 	log.Printf("Peer found: %v\n", peerInfo)
-	// }
-	// Announce your node's presence clearly:
 	announceKey, err := cidFromString("/myapp/peers")
 	if err != nil {
 		log.Fatalf("Error creating CID: %v", err)
 	}
-
-	// Announce your node periodically
 	go func() {
 		for {
 			ctxProvide, cancel := context.WithTimeout(context.Background(), 10*time.Second)
@@ -255,17 +233,19 @@ func setupNode(ctx context.Context, bootstrapAddr string) (host.Host, *dht.IpfsD
 				log.Printf("Provide error: %v\n", err)
 			}
 			cancel()
-			time.Sleep(30 * time.Second)
+			time.Sleep(5 * time.Second)
 		}
 	}()
-
-	// Discover peers periodically
 	go func() {
 		for {
 			ctxFind, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 			peerChan := kad.FindProvidersAsync(ctxFind, announceKey, 10)
 			for p := range peerChan {
 				if p.ID != node.ID() {
+					err := node.Connect(ctx, p)
+					if err != nil {
+						continue
+					}
 					log.Printf("Discovered peer: %s\n", p.ID.String())
 					node.Peerstore().AddAddrs(p.ID, p.Addrs, time.Hour)
 				}
@@ -275,71 +255,130 @@ func setupNode(ctx context.Context, bootstrapAddr string) (host.Host, *dht.IpfsD
 		}
 	}()
 
-	return node, kad
+	Node, KadDHT = node, kad
 }
 
-// A simple stream handler for inbound file requests
-// func handleFileRequest(s network.Stream) {
-// 	defer s.Close()
+func loadOrGeneratePrivateKey() crypto.PrivKey {
+	var keyFilePath = filepath.Join(DataDir, TmpFolder, "peer.key")
+	if keyData, err := os.ReadFile(keyFilePath); err == nil {
+		key, err := crypto.UnmarshalPrivateKey(keyData)
+		if err != nil {
+			log.Fatalf("Failed to unmarshal saved private key: %v", err)
+		}
+		return key
+	}
+	priv, _, err := crypto.GenerateEd25519Key(rand.Reader)
+	if err != nil {
+		log.Fatalf("Failed to generate private key: %v", err)
+	}
+	keyBytes, err := crypto.MarshalPrivateKey(priv)
+	if err != nil {
+		log.Fatalf("Failed to marshal private key: %v", err)
+	}
+	if err := os.MkdirAll(filepath.Dir(keyFilePath), 0755); err != nil {
+		log.Fatalf("Failed to create key dir: %v", err)
+	}
+	if err := os.WriteFile(keyFilePath, keyBytes, 0600); err != nil {
+		log.Fatalf("Failed to write private key: %v", err)
+	}
+	return priv
+}
 
-// 	buf := bufio.NewReader(s)
-// 	fileName, err := buf.ReadString('\n')
-// 	if err != nil {
-// 		log.Println("Error reading request:", err)
-// 		return
-// 	}
-// 	fileName = strings.TrimSpace(fileName)
-// 	log.Printf("Received request for file: %s\n", fileName)
-
-//		data, err := ioutil.ReadFile(fileName)
-//		if err != nil {
-//			msg := fmt.Sprintf("Error: %v\n", err)
-//			s.Write([]byte(msg))
-//			return
-//		}
-//		s.Write(data)
-//		log.Printf("Sent file: %s\n", fileName)
-//	}
 func handleFileRequest(s network.Stream) {
 	defer func() {
 		if err := s.Close(); err != nil {
-			log.Fatal("Peer app error when close file request stream", err)
+			log.Fatal("Peer app error when closing file request stream:", err)
 		}
 	}()
 
-	// Read requested filename
+	log.Println("Download DIR:", DownloadDir)
+
+	// Read request
 	buf := make([]byte, 1024)
 	n, err := s.Read(buf)
 	if err != nil {
 		log.Println("Error reading request:", err)
 		return
 	}
-	requestedFile := strings.TrimSpace(string(buf[:n]))
-	log.Println("Received request for file:", requestedFile)
 
-	// Construct file path based on peer's directory
-	// ! Race condition? DataDir is set after user selection
-	filePath := filepath.Join(DataDir, requestedFile)
-	log.Println("File path:", filePath)
+	var requestedFile types.DownloadRequest
+	if err := json.Unmarshal(buf[:n], &requestedFile); err != nil {
+		log.Println("Error decoding JSON request:", err)
+		return
+	}
+	log.Println("Received request for:", requestedFile)
 
-	// Check if file exists
-	if _, err := os.Stat(filePath); os.IsNotExist(err) {
-		log.Println("File not found on provider node:", filePath)
-		if _, err := s.Write([]byte("Error: open " + filePath + ": no such file or directory\n")); err != nil {
-			log.Println("Error writing to stream:", err)
+	// Try locating file in Upload first, then fallback to Download
+	var filePath string
+	searchPaths := []string{DataDir, DownloadDir}
+
+	for _, basePath := range searchPaths {
+		if requestedFile.Type == "manifest" {
+			filePath = filepath.Join(basePath, ".p2p", requestedFile.FileName)
+		} else {
+			filePath = filepath.Join(basePath, requestedFile.FileName)
+		}
+		if _, err := os.Stat(filePath); err == nil {
+			break // file found
+		}
+		filePath = "" // reset if not found
+	}
+
+	if filePath == "" {
+		msg := "Error: requested file not found in Upload or Download folder\n"
+		log.Println(msg)
+		if _, err := s.Write([]byte(msg)); err != nil {
+			log.Fatal("Error while handling file requests", err)
 		}
 		return
 	}
 
-	// Read file and send it
-	data, err := os.ReadFile(filePath)
-	if err != nil {
-		log.Println("Error reading file:", err)
-		return
+	log.Println("Serving file path:", filePath)
+
+	// Handle file or chunk response
+	if requestedFile.Type == "file" {
+		// Respond with chunk at index `ChunkIndex`
+		f, err := os.Open(filePath)
+		if err != nil {
+			log.Println("Error opening file:", err)
+			return
+		}
+		defer func() {
+			if err := f.Close(); err != nil {
+				log.Println("Error when closing file", err)
+			}
+		}()
+
+		offset := int64(requestedFile.ChunkIndex) * int64(ChunkSize)
+		if _, err := f.Seek(offset, 0); err != nil {
+			log.Println("Seek error:", err)
+			return
+		}
+
+		chunk := make([]byte, ChunkSize)
+		bytesRead, err := f.Read(chunk)
+		if err != nil && err != io.EOF {
+			log.Println("Error reading chunk:", err)
+			return
+		}
+
+		if _, err := s.Write(chunk[:bytesRead]); err != nil {
+			log.Println("Error sending chunk:", err)
+			return
+		}
+		log.Printf("Sent chunk %d (%d bytes)\n", requestedFile.ChunkIndex, bytesRead)
+
+	} else {
+		// Manifest or full file
+		data, err := os.ReadFile(filePath)
+		if err != nil {
+			log.Println("Error reading file:", err)
+			return
+		}
+		if _, err := s.Write(data); err != nil {
+			log.Println("Error writing to stream:", err)
+			return
+		}
+		log.Println("Sent Manifest file:", requestedFile.FileName)
 	}
-	if _, err := s.Write(data); err != nil {
-		log.Println("Error writing to stream:", err)
-		return
-	}
-	log.Println("Sent file:", requestedFile)
 }

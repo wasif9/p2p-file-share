@@ -1,7 +1,6 @@
 package main
 
 import (
-	"context"
 	"encoding/json"
 	"fmt"
 	"image"
@@ -10,7 +9,6 @@ import (
 	"log"
 	"net"
 	"net/http"
-	"os"
 	"path/filepath"
 	"strings"
 	"time"
@@ -22,17 +20,10 @@ import (
 	"gioui.org/widget"
 	"gioui.org/widget/material"
 	"github.com/dustin/go-humanize"
-	"github.com/ipfs/go-cid"
-	dht "github.com/libp2p/go-libp2p-kad-dht"
-	"github.com/libp2p/go-libp2p/core/host"
-	"github.com/libp2p/go-libp2p/core/peer"
 	types "github.com/wasif9/p2p-file-share/pkg/models"
 )
 
 type DownloadUI struct {
-	node   host.Host
-	kadDHT *dht.IpfsDHT // <-- Add this to do real DHT lookups
-
 	searchInput    widget.Editor
 	searchButton   widget.Clickable
 	results        []types.Manifest
@@ -329,127 +320,12 @@ func (ui *DownloadUI) download(prgUI *ProgressUI) {
 
 		// ------------------------------------------------------------
 		// !P2P Download
+		DownloadManifest(manifest.Name, manifest.Hash, filepath.Join(ui.dirPath, ".p2p"))
 
-		peerID, err := dhtLookup(ui, manifest.Hash)
-		if err != nil {
-			PopupMessage("Cannot download file \ndue to no providers")
-			log.Println("Error finding provider:", err)
-			downloadFile.Shown = false
-			return
-		}
-
-		// TODO Update download progress = data received / file size
 		downloadFile.Progress = 0
 
-		// TODO Keep checking next provider or trying until some providers is online
-		if err := requestFile(ui.node, peerID, manifest.Name, ui.dirPath, manifest.Hash); err != nil {
-			if strings.HasPrefix(err.Error(), "File Not Found") {
-				PopupMessage("File Not Found: " + fileName)
-			} else if strings.HasPrefix(err.Error(), "Integrity check failed") {
-				PopupMessage("Integrity check failed: " + fileName)
-			} else {
-				PopupMessage("Fail to get file " + fileName + " from peers")
-			}
-			return
-		}
-
-		// Set the progress bar to 100% (hardcode for now)
-		downloadFile.Progress = 1
+		DownloadFile(manifest.Name, ui.dirPath, downloadFile)
 
 		PopupMessage(fileName + " download finish")
 	}()
-}
-
-func requestFile(node host.Host, providerID peer.ID, fileName string, dirPath string, expectedCID string) error {
-	// Open a new stream to the provider
-	ctx := context.Background()
-
-	// Log which peer we're contacting
-	log.Println("Attempting to request file from provider:", providerID.String())
-
-	s, err := node.NewStream(ctx, providerID, Protocol)
-	if err != nil {
-		return err
-	}
-	defer func() {
-		if err := s.Close(); err != nil {
-			log.Println("Peer app error when close request file request", err)
-		}
-	}()
-
-	// Send the file request
-	log.Printf("Requesting file: %s\n", fileName)
-	if _, err := s.Write([]byte(fileName + "\n")); err != nil {
-		return err
-	}
-
-	// Read the response
-	data, err := io.ReadAll(s)
-	if err != nil {
-		return err
-	}
-
-	// Check if the response indicates an error
-	response := string(data)
-	if strings.HasPrefix(response, "Error:") || strings.HasPrefix(response, "File not found") {
-		log.Printf("Failed to get file %s from the provider %s\n", fileName, providerID.String())
-		return fmt.Errorf("file Not Found from the provider")
-	}
-
-	// Construct the correct save path in the peer's directory
-	savePath := filepath.Join(dirPath, fileName)
-
-	// Write the file data to correct directory
-	err = os.WriteFile(savePath, data, 0644)
-	if err != nil {
-		return err
-	}
-
-	log.Printf("Received and saved file as %s\n", fileName)
-
-	// Integrity Check: Compare computed CID with expected CID
-	computedCID, err := cidFromFile(savePath)
-	if err != nil {
-		log.Println("Error computing CID for downloaded file:", err)
-		return err
-	}
-	if computedCID.String() == expectedCID {
-		log.Println("✅ Integrity check passed: File matches expected CID.")
-	} else {
-		log.Println("❌ Integrity check failed: File does NOT match expected CID.")
-		log.Printf("Expected CID: %s\n", expectedCID)
-		log.Printf("Computed CID: %s\n", computedCID.String())
-		return fmt.Errorf("integrity check failed")
-	}
-
-	return nil
-}
-
-func dhtLookup(ui *DownloadUI, fileCID string) (peer.ID, error) {
-	ctx := context.Background()
-
-	// Decode the CID from the string
-	c, err := cid.Decode(fileCID)
-	if err != nil {
-		return "", fmt.Errorf("failed to convert CID: %v", err)
-	}
-
-	providerChan := ui.kadDHT.FindProvidersAsync(ctx, c, 10)
-
-	// Log all found providers
-	var foundProvider peer.ID
-	for p := range providerChan {
-		log.Println("Discovered provider:", p.ID.String())
-		if p.ID != ui.node.ID() {
-			foundProvider = p.ID
-			break
-		}
-	}
-
-	if foundProvider == "" {
-		return "", fmt.Errorf("no providers found for CID: %s", fileCID)
-	}
-
-	log.Println("Using provider:", foundProvider.String())
-	return foundProvider, nil
 }

@@ -14,7 +14,7 @@ import (
 func PopupMessage(message string) {
 	go func() {
 		popupWindow := new(app.Window)
-		popupWindow.Option(app.Title("P2P File Share"))
+		popupWindow.Option(app.Title(AppTitle))
 		popupWindow.Option(app.Size(unit.Dp(400), unit.Dp(200)))
 
 		thPopup := material.NewTheme()
